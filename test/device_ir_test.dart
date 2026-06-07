@@ -120,9 +120,10 @@ void main() {
   });
 
   group('Device NEC IR encoders', () {
-    test('every built-in encoder uses a 38kHz carrier', () {
+    test('every built-in encoder uses a valid IR carrier (36-40kHz)', () {
+      // Most are 38kHz NEC; Sony=40k, Panasonic=37k, Philips RC5=36k.
       for (final e in DeviceIrProtocols.all) {
-        expect(e.carrierHz, 38000, reason: e.brandId);
+        expect(e.carrierHz, inInclusiveRange(36000, 40000), reason: e.brandId);
       }
     });
 

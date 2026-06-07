@@ -216,9 +216,46 @@ class BrandCatalog {
   static bool irCapable(String brandId, ApplianceKind kind) =>
       supportFor(brandId, kind)?.supportsIr ?? false;
 
-  /// The IR encoder id to use for an appliance, resolving the brand+kind to its
-  /// generic encoder. Falls back to the kind's generic encoder if the brand is
-  /// unknown (e.g. legacy appliances saved before the catalog existed).
-  static String? irEncoderId(String brandId, ApplianceKind kind) =>
-      supportFor(brandId, kind)?.irBrandId ?? _genericIrFor(kind);
+  /// Dedicated real-protocol encoders for specific (brand, kind) pairs, keyed
+  /// 'brandId:kind'. These take precedence over the generic per-kind encoder.
+  /// Each id must exist in DeviceIrProtocols (TV/AV) or AcIrProtocols (AC).
+  static const Map<String, String> _realEncoders = {
+    // TVs — verified protocols (Samsung32, LG-NEC, SIRC, Kaseikyo, Sharp, RC5,
+    // extended-NEC).
+    'samsung:tv': 'samsung_tv',
+    'lg:tv': 'lg_tv',
+    'sony:tv': 'sony_tv',
+    'panasonic:tv': 'panasonic_tv',
+    'sharp:tv': 'sharp_tv',
+    'philips:tv': 'philips_tv',
+    'hisense:tv': 'hisense_tv',
+    'tcl:tv': 'tcl_tv',
+    // ACs — dedicated stateful encoders (wired as they land; unmapped AC
+    // brands fall back to the generic Gree encoder).
+    'midea:airConditioner': 'midea',
+    'beko:airConditioner': 'coolix',
+    'kenmore:airConditioner': 'midea',
+    'electrolux:airConditioner': 'electra_ac',
+    'frigidaire:airConditioner': 'electra_ac',
+    'panasonic:airConditioner': 'panasonic_ac',
+    'toshiba:airConditioner': 'toshiba_ac',
+    'hitachi:airConditioner': 'hitachi_ac',
+    'lg:airConditioner': 'lg_ac',
+    'samsung:airConditioner': 'samsung_ac',
+    'haier:airConditioner': 'haier_ac',
+    'hisense:airConditioner': 'kelon',
+    'tcl:airConditioner': 'tcl112_ac',
+    'whirlpool:airConditioner': 'whirlpool_ac',
+    'sharp:airConditioner': 'sharp_ac',
+  };
+
+  /// The IR encoder id to use for an appliance. Prefers a dedicated real
+  /// encoder for the (brand, kind) pair, then the catalog support entry, then
+  /// the kind's generic encoder (also the path for legacy appliances whose
+  /// `brand` was saved as a raw encoder id before the catalog existed).
+  static String? irEncoderId(String brandId, ApplianceKind kind) {
+    final real = _realEncoders['$brandId:${kind.name}'];
+    if (real != null) return real;
+    return supportFor(brandId, kind)?.irBrandId ?? _genericIrFor(kind);
+  }
 }

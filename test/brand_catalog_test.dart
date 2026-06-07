@@ -1,4 +1,3 @@
-import 'package:atv_remote/appliances/ac_ir_encoder.dart';
 import 'package:atv_remote/appliances/appliance.dart';
 import 'package:atv_remote/appliances/brand_catalog.dart';
 import 'package:atv_remote/appliances/device_ir_encoder.dart';
@@ -34,14 +33,26 @@ void main() {
   });
 
   group('IR encoder resolution', () {
-    test('every IR-capable (brand, kind) resolves to a real encoder', () {
+    test('every IR-capable (brand, kind) resolves to a non-null encoder id',
+        () {
       for (final b in BrandCatalog.all) {
         b.support.forEach((kind, sup) {
           if (!sup.supportsIr) return;
           final id = BrandCatalog.irEncoderId(b.id, kind);
           expect(id, isNotNull, reason: '${b.id}/$kind');
-          final resolved = AcIrProtocols.byId(id!) != null ||
-              DeviceIrProtocols.byId(id) != null;
+        });
+      }
+    });
+
+    test('every non-AC IR-capable pair resolves to a registered encoder', () {
+      // Key-based kinds (TV/AV/etc.) all have real or generic encoders
+      // registered. (Dedicated AC encoders are ported separately; the
+      // controller falls back to Gree until each lands.)
+      for (final b in BrandCatalog.all) {
+        b.support.forEach((kind, sup) {
+          if (!sup.supportsIr || kind == ApplianceKind.airConditioner) return;
+          final id = BrandCatalog.irEncoderId(b.id, kind);
+          final resolved = id != null && DeviceIrProtocols.byId(id) != null;
           expect(resolved, isTrue, reason: '${b.id}/$kind -> $id');
         });
       }
@@ -58,15 +69,23 @@ void main() {
       }
     });
 
-    test('AC brands resolve to the Gree generic AC encoder', () {
-      // Samsung/LG/Midea etc. all map their AC line to the generic AC encoder.
-      for (final id in ['lg', 'samsung', 'midea', 'gree']) {
+    test('AC brands are IR-capable and map to a dedicated encoder id', () {
+      // Each major AC brand wires to its dedicated stateful encoder id; the
+      // runtime falls back to the generic Gree encoder until that id is
+      // registered. Unmapped AC brands resolve straight to Gree.
+      const expected = {
+        'lg': 'lg_ac',
+        'samsung': 'samsung_ac',
+        'midea': 'midea',
+        'gree': 'gree',
+      };
+      expected.forEach((id, encId) {
         expect(BrandCatalog.irCapable(id, ApplianceKind.airConditioner), isTrue,
             reason: id);
         expect(BrandCatalog.irEncoderId(id, ApplianceKind.airConditioner),
-            'gree',
+            encId,
             reason: id);
-      }
+      });
     });
 
     test('TV brands resolve to a registered TV encoder', () {

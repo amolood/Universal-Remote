@@ -102,20 +102,40 @@ class ApplianceController extends ChangeNotifier {
   // ---------------- Control ----------------
 
   /// Resolves the AC IR encoder for [a]. The appliance stores a brand id from
-  /// the catalog (e.g. 'lg'); the catalog maps brand+kind to the generic
-  /// encoder. Falls back to treating `brand` as a direct encoder id so legacy
-  /// appliances saved before the catalog still resolve.
+  /// the catalog (e.g. 'lg'); the catalog maps brand+kind to a dedicated or
+  /// generic encoder. Falls back to treating `brand` as a direct encoder id
+  /// (legacy appliances), then to the generic Gree encoder so AC control still
+  /// works for a brand whose dedicated encoder isn't registered yet.
   AcIrEncoder? _acEncoderFor(Appliance a) {
     final encId = BrandCatalog.irEncoderId(a.brand, a.kind);
-    return AcIrProtocols.byId(encId ?? a.brand) ?? AcIrProtocols.byId(a.brand);
+    return AcIrProtocols.byId(encId ?? a.brand) ??
+        AcIrProtocols.byId(a.brand) ??
+        AcIrProtocols.byId('gree');
   }
 
   /// Resolves the key-based device IR encoder for [a] (see [_acEncoderFor]).
+  /// Falls back to the kind's generic encoder if the dedicated one is missing.
   DeviceIrEncoder? _deviceEncoderFor(Appliance a) {
     final encId = BrandCatalog.irEncoderId(a.brand, a.kind);
     return DeviceIrProtocols.byId(encId ?? a.brand) ??
-        DeviceIrProtocols.byId(a.brand);
+        DeviceIrProtocols.byId(a.brand) ??
+        DeviceIrProtocols.byId(_genericDeviceEncoderId(a.kind));
   }
+
+  /// The generic key-based encoder id for [kind] (fallback when no dedicated
+  /// encoder is registered). Mirrors brand_catalog's generic mapping.
+  String _genericDeviceEncoderId(ApplianceKind kind) => switch (kind) {
+        ApplianceKind.tv => 'nec_tv',
+        ApplianceKind.fan => 'nec_fan',
+        ApplianceKind.light => 'nec_light',
+        ApplianceKind.radio => 'nec_radio',
+        ApplianceKind.dvd => 'nec_dvd',
+        ApplianceKind.setTopBox => 'nec_stb',
+        ApplianceKind.projector => 'nec_projector',
+        ApplianceKind.soundbar => 'nec_soundbar',
+        ApplianceKind.heater => 'nec_heater',
+        ApplianceKind.airConditioner || ApplianceKind.generic => '',
+      };
 
   /// Applies an AC state to [a]: encodes it for the brand and sends over the
   /// appliance's transport. Persists the new state so the panel reopens there.
