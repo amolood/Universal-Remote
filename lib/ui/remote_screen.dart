@@ -465,6 +465,8 @@ void _openTvSwitcher(BuildContext context, AtvController c) {
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
+    // Dim the remote behind so the floating sheet reads as a distinct surface.
+    barrierColor: Colors.black.withValues(alpha: 0.6),
     builder: (_) => _TvSwitcherSheet(c: c),
   );
 }
@@ -478,12 +480,18 @@ class _TvSwitcherSheet extends StatelessWidget {
     final s = S.of(context);
     final active = c.activeTv;
     return SafeArea(
-      child: GlassPanel(
-        radius: AppTheme.rLg,
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      child: Padding(
+        // Float the sheet as a card inset from the screen edges so it reads as
+        // a distinct surface and doesn't visually merge with the remote behind.
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: GlassPanel(
+          radius: AppTheme.rLg,
+          // Opaque surface so the remote behind doesn't bleed through the sheet.
+          tint: AppTheme.bg1,
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               width: 40,
               height: 4,
@@ -551,6 +559,7 @@ class _TvSwitcherSheet extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
