@@ -677,7 +677,8 @@ Future<String?> _promptRename(BuildContext context, String current) {
         ),
       ],
     ),
-  );
+    // Release the field controller once the dialog is gone.
+  ).whenComplete(controller.dispose);
 }
 
 class _PulsingDot extends StatefulWidget {

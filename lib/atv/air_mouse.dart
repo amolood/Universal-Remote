@@ -36,28 +36,43 @@ class AirMouse {
 
   bool get isRunning => _sub != null;
 
+  /// Processes one raw gyro sample (rad/s) through the dead zone, low-pass
+  /// filter, and sensitivity scaling. Returns the (dx, dy) pointer delta to
+  /// emit, or null when the motion is below the settle threshold. Pure w.r.t.
+  /// the carried filter state (`_fx`/`_fy`), so it's unit-testable without the
+  /// sensor stream. Call [reset] before a fresh gesture.
+  (double, double)? processSample(double rawX, double rawY) {
+    final a = smoothing.clamp(0.0, 1.0);
+    var rx = rawX;
+    var ry = rawY;
+    if (rx.abs() < deadZone) rx = 0;
+    if (ry.abs() < deadZone) ry = 0;
+    // Exponential moving average smooths out gyroscope noise/jitter.
+    _fx = a == 0 ? rx : _fx * (1 - a) + rx * a;
+    _fy = a == 0 ? ry : _fy * (1 - a) + ry * a;
+    // Snap tiny residuals to zero so the cursor settles when the hand stops.
+    if (_fx.abs() < 1e-3 && _fy.abs() < 1e-3) return null;
+    return (_fx * sensitivity, _fy * sensitivity);
+  }
+
+  /// Clears the carried filter state (call when starting a new gesture).
+  void reset() {
+    _fx = 0;
+    _fy = 0;
+  }
+
   /// Starts emitting (dx, dy) pointer deltas to [onMove] until [stop].
   void start(void Function(double dx, double dy) onMove) {
     _sub?.cancel();
-    _fx = 0;
-    _fy = 0;
-    final a = smoothing.clamp(0.0, 1.0);
+    reset();
     _sub = gyroscopeEventStream(
       samplingPeriod: const Duration(milliseconds: 16), // ~60Hz
     ).listen((e) {
       // Map device axes to screen axes (portrait hold):
       //   yaw   = e.z -> horizontal (invert so rotating right moves right)
       //   pitch = e.x -> vertical
-      var rx = -e.z;
-      var ry = -e.x;
-      if (rx.abs() < deadZone) rx = 0;
-      if (ry.abs() < deadZone) ry = 0;
-      // Exponential moving average smooths out gyroscope noise/jitter.
-      _fx = a == 0 ? rx : _fx * (1 - a) + rx * a;
-      _fy = a == 0 ? ry : _fy * (1 - a) + ry * a;
-      // Snap tiny residuals to zero so the cursor settles when the hand stops.
-      if (_fx.abs() < 1e-3 && _fy.abs() < 1e-3) return;
-      onMove(_fx * sensitivity, _fy * sensitivity);
+      final out = processSample(-e.z, -e.x);
+      if (out != null) onMove(out.$1, out.$2);
     });
   }
 

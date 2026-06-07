@@ -66,6 +66,35 @@ class CvteMessages {
   static Uint8List keyboardShow() => event(type: CvteEvent.keyboardShowEvent);
 }
 
+/// Tracks the air-mouse / touchpad cursor as an absolute position on a virtual
+/// board surface. CVTE/Bytello expect absolute pixel coordinates (not deltas),
+/// so incoming movement deltas are integrated here, scaled by a gain, and
+/// clamped to the surface. Pure and self-contained for unit testing.
+class CvteCursor {
+  /// Virtual surface size; the board rescales these to its own resolution.
+  static const double surfaceW = 1920;
+  static const double surfaceH = 1080;
+
+  /// Movement gain so a small input delta covers a sensible span of the large
+  /// surface (matches the feel of the reference air-mouse gain).
+  static const double gain = 2.5;
+
+  double x = surfaceW / 2;
+  double y = surfaceH / 2;
+
+  /// Integrates a movement delta into the absolute position, clamped to bounds.
+  void move(double dx, double dy) {
+    x = (x + dx * gain).clamp(0.0, surfaceW);
+    y = (y + dy * gain).clamp(0.0, surfaceH);
+  }
+
+  /// Resets the cursor to the centre of the surface.
+  void recenter() {
+    x = surfaceW / 2;
+    y = surfaceH / 2;
+  }
+}
+
 /// CVTE control backend over WebSocket.
 class CvteBackend implements RemoteBackend {
   final String host;
@@ -140,32 +169,22 @@ class CvteBackend implements RemoteBackend {
   @override
   void sendKey(int keyCode) => _send(CvteMessages.key(keyCode));
 
-  // Virtual board surface the cursor lives on. The board scales these absolute
-  // coordinates to its own resolution (Bytello sends absolute pixels, not
-  // deltas), so we keep an absolute position here and clamp it to the surface.
-  static const double _surfaceW = 1920;
-  static const double _surfaceH = 1080;
-  // Movement gain so a small input delta covers a sensible span of the large
-  // board surface (matches the feel of the reference air-mouse gain).
-  static const double _moveGain = 2.5;
-  double _curX = _surfaceW / 2;
-  double _curY = _surfaceH / 2;
+  // Absolute cursor position on the virtual board surface. The board scales
+  // these coordinates to its own resolution (Bytello sends absolute pixels,
+  // not deltas), so the math lives in a small, testable helper.
+  final CvteCursor _cursor = CvteCursor();
 
   @override
   void moveCursor(double dx, double dy) {
     // Incoming dx/dy are movement deltas (from the touchpad drag or the gyro
-    // air mouse). Integrate them into an absolute position and clamp.
-    _curX = (_curX + dx * _moveGain).clamp(0.0, _surfaceW);
-    _curY = (_curY + dy * _moveGain).clamp(0.0, _surfaceH);
-    _send(CvteMessages.mouseMove(_curX, _curY));
+    // air mouse). The cursor integrates them into an absolute, clamped position.
+    _cursor.move(dx, dy);
+    _send(CvteMessages.mouseMove(_cursor.x, _cursor.y));
   }
 
   /// Recenters the cursor — useful when (re)starting the air mouse so motion
   /// begins from the middle of the screen.
-  void recenterCursor() {
-    _curX = _surfaceW / 2;
-    _curY = _surfaceH / 2;
-  }
+  void recenterCursor() => _cursor.recenter();
 
   @override
   void click() => _send(CvteMessages.mouseClick());
