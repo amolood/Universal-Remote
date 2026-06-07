@@ -89,6 +89,11 @@ class S {
   String get fanMedium => _t('fan_medium');
   String get fanHigh => _t('fan_high');
   String get swing => _t('swing');
+  String get searchingDevices => _t('searching_devices');
+  String get foundDevices => _t('found_devices');
+  String get noDevicesFound => _t('no_devices_found');
+  String get rescan => _t('rescan');
+  String get enterManually => _t('enter_manually');
 
   // --- Remote ---
   String get connected => _t('connected');
@@ -230,6 +235,11 @@ const Map<String, String> _en = {
   'fan_medium': 'Mid',
   'fan_high': 'High',
   'swing': 'Swing',
+  'searching_devices': 'Searching for devices…',
+  'found_devices': 'Found devices',
+  'no_devices_found': 'No devices found on the network. Enter the address manually below.',
+  'rescan': 'Scan again',
+  'enter_manually': 'Enter address manually',
   'connected': 'Connected',
   'connecting': 'Connecting…',
   'disconnected': 'Disconnected',
@@ -357,6 +367,11 @@ const Map<String, String> _ar = {
   'fan_medium': 'متوسط',
   'fan_high': 'عالٍ',
   'swing': 'تأرجح',
+  'searching_devices': 'جارٍ البحث عن الأجهزة…',
+  'found_devices': 'أجهزة موجودة',
+  'no_devices_found': 'لم يُعثر على أجهزة في الشبكة. أدخل العنوان يدويًا بالأسفل.',
+  'rescan': 'إعادة البحث',
+  'enter_manually': 'إدخال العنوان يدويًا',
   'connected': 'متصل',
   'connecting': 'جارٍ الاتصال…',
   'disconnected': 'غير متصل',

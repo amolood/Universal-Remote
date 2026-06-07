@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../appliances/ac_ir_encoder.dart';
 import '../appliances/appliance.dart';
 import '../appliances/appliance_controller.dart';
+import '../appliances/appliance_discovery.dart';
 import '../i18n/strings.dart';
 import 'theme.dart';
 import 'widgets/aurora_background.dart';
@@ -195,6 +196,12 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
   ApplianceTransport _transport = ApplianceTransport.builtinIr;
   String _brand = AcIrProtocols.all.first.brandId;
 
+  // Auto-discovery state for Wi-Fi / hub transports.
+  bool _scanning = false;
+  bool _scanned = false; // a scan has completed at least once
+  bool _manual = false; // user chose to enter the address by hand
+  List<DiscoveredHub> _found = const [];
+
   @override
   void dispose() {
     _name.dispose();
@@ -204,6 +211,49 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
   }
 
   bool get _isWifiOrHub => _transport != ApplianceTransport.builtinIr;
+
+  /// Picks a transport. For network transports, kick off auto-discovery first;
+  /// the manual IP form only appears if discovery finds nothing (or on request).
+  void _selectTransport(ApplianceTransport t) {
+    setState(() {
+      _transport = t;
+      _manual = false;
+      _scanned = false;
+      _found = const [];
+      _host.clear();
+    });
+    if (t != ApplianceTransport.builtinIr) _scan();
+  }
+
+  Future<void> _scan() async {
+    setState(() => _scanning = true);
+    List<DiscoveredHub> hubs = const [];
+    try {
+      hubs = await ApplianceDiscovery.discover();
+    } catch (_) {
+      hubs = const [];
+    }
+    if (!mounted) return;
+    // Keep only hubs matching the chosen transport family.
+    final filtered =
+        hubs.where((h) => h.transport == _transport).toList();
+    setState(() {
+      _scanning = false;
+      _scanned = true;
+      _found = filtered;
+      // Auto-discovery is the first option; fall back to manual only when the
+      // scan comes back empty.
+      _manual = filtered.isEmpty;
+    });
+  }
+
+  void _useHub(DiscoveredHub h) {
+    setState(() {
+      _host.text = h.host;
+      if (h.brand.isNotEmpty) _brand = h.brand;
+      _manual = true; // reveal the form pre-filled so the user can add a token
+    });
+  }
 
   Future<void> _save() async {
     final s = S.of(context);
@@ -268,13 +318,7 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
                 const SizedBox(height: 20),
               ],
               if (_isWifiOrHub) ...[
-                _label(s.ipAddress),
-                const SizedBox(height: 8),
-                _field(_host, '192.168.1.50'),
-                const SizedBox(height: 16),
-                _label(s.tokenOptional),
-                const SizedBox(height: 8),
-                _field(_token, '••••••'),
+                ..._networkSection(s),
                 const SizedBox(height: 20),
               ],
               _label(s.name),
@@ -331,7 +375,7 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
               label: label,
               icon: icon,
               selected: _transport == t,
-              onTap: () => setState(() => _transport = t),
+              onTap: () => _selectTransport(t),
             ),
           ),
       ],
@@ -349,6 +393,85 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
       ],
     );
   }
+
+  /// Network transports: auto-discovery first, manual entry as a fallback.
+  List<Widget> _networkSection(S s) {
+    if (_scanning) {
+      return [
+        _label(s.searchingDevices),
+        const SizedBox(height: 12),
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 10),
+            child: SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+          ),
+        ),
+      ];
+    }
+
+    final widgets = <Widget>[];
+
+    // Show discovered hubs (the primary path) when any were found.
+    if (_scanned && _found.isNotEmpty) {
+      widgets.add(_label(s.foundDevices));
+      widgets.add(const SizedBox(height: 8));
+      for (final h in _found) {
+        final selected = _host.text == h.host;
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _choiceRow(
+            label: '${h.name}  ·  ${h.host}',
+            icon: Icons.wifi_tethering_rounded,
+            selected: selected,
+            onTap: () => _useHub(h),
+          ),
+        ));
+      }
+      widgets.add(const SizedBox(height: 6));
+      widgets.add(_linkRow(
+        _scanning ? s.searchingDevices : s.rescan,
+        Icons.refresh_rounded,
+        _scan,
+      ));
+      widgets.add(_linkRow(s.enterManually, Icons.keyboard_rounded,
+          () => setState(() => _manual = true)));
+    }
+
+    // Empty-scan note + the manual fallback form.
+    if (_scanned && _found.isEmpty && !_manual) {
+      widgets.add(_warn(s.noDevicesFound));
+      widgets.add(const SizedBox(height: 10));
+      widgets.add(_linkRow(s.rescan, Icons.refresh_rounded, _scan));
+    }
+
+    if (_manual) {
+      if (_found.isNotEmpty) widgets.add(const SizedBox(height: 10));
+      widgets.add(_label(s.ipAddress));
+      widgets.add(const SizedBox(height: 8));
+      widgets.add(_field(_host, '192.168.1.50'));
+      widgets.add(const SizedBox(height: 16));
+      widgets.add(_label(s.tokenOptional));
+      widgets.add(const SizedBox(height: 8));
+      widgets.add(_field(_token, '••••••'));
+    }
+
+    return widgets;
+  }
+
+  Widget _linkRow(String label, IconData icon, VoidCallback onTap) =>
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 18, color: AppTheme.accent),
+          label: Text(label,
+              style: const TextStyle(color: AppTheme.accent)),
+        ),
+      );
 
   Widget _choiceRow({
     required String label,
