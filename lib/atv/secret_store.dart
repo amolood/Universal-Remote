@@ -73,6 +73,33 @@ class SecretStore {
       atvLog('secret delete $id', e);
     }
   }
+
+  // ---- Generic single-value secrets (used by appliances: a hub token / key) ----
+
+  Future<String?> readRaw(String key) async {
+    try {
+      return await _s.read(key: key);
+    } catch (e) {
+      atvLog('secret readRaw $key', e);
+      return null;
+    }
+  }
+
+  Future<void> writeRaw(String key, String value) async {
+    try {
+      await _put(key, value);
+    } catch (e) {
+      atvLog('secret writeRaw $key', e);
+    }
+  }
+
+  Future<void> deleteRaw(String key) async {
+    try {
+      await _s.delete(key: key);
+    } catch (e) {
+      atvLog('secret deleteRaw $key', e);
+    }
+  }
 }
 
 /// The sensitive credentials for one TV.

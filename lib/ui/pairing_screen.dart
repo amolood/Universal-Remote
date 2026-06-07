@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../atv/atv_controller.dart';
 import '../i18n/strings.dart';
+import 'appliances_screen.dart';
 import 'theme.dart';
 import 'widgets/aurora_background.dart';
 import 'widgets/glass.dart';
@@ -175,6 +176,18 @@ class _PairingScreenState extends State<PairingScreen> {
                   ],
                 ),
               ),
+              GlassIconButton(
+                icon: Icons.ac_unit_rounded,
+                size: 48,
+                iconSize: 22,
+                onTap: () {
+                  Haptics.tap();
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const AppliancesScreen()));
+                },
+                tooltip: S.of(context).appliances,
+              ),
+              const SizedBox(width: 8),
               GlassIconButton(
                 icon: c.scanning ? Icons.hourglass_top : Icons.refresh,
                 size: 48,

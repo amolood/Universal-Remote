@@ -61,6 +61,35 @@ class S {
   String get addAnotherTv => _t('add_another_tv');
   String get tvNameHint => _t('tv_name_hint');
 
+  // --- Appliances ---
+  String get appliances => _t('appliances');
+  String get addAppliance => _t('add_appliance');
+  String get noAppliances => _t('no_appliances');
+  String get on => _t('on');
+  String get off => _t('off');
+  String get connection => _t('connection');
+  String get brand => _t('brand');
+  String get ipAddress => _t('ip_address');
+  String get tokenOptional => _t('token_optional');
+  String get name => _t('name');
+  String get builtinIr => _t('builtin_ir');
+  String get irHub => _t('ir_hub');
+  String get wifiAppliance => _t('wifi_appliance');
+  String get noIrEmitter => _t('no_ir_emitter');
+  String get airConditioner => _t('air_conditioner');
+  String get mode => _t('mode');
+  String get fanSpeed => _t('fan_speed');
+  String get modeCool => _t('mode_cool');
+  String get modeHeat => _t('mode_heat');
+  String get modeDry => _t('mode_dry');
+  String get modeFan => _t('mode_fan');
+  String get modeAuto => _t('mode_auto');
+  String get fanAuto => _t('fan_auto');
+  String get fanLow => _t('fan_low');
+  String get fanMedium => _t('fan_medium');
+  String get fanHigh => _t('fan_high');
+  String get swing => _t('swing');
+
   // --- Remote ---
   String get connected => _t('connected');
   String get connecting => _t('connecting');
@@ -174,6 +203,33 @@ const Map<String, String> _en = {
   'rename': 'Rename',
   'add_another_tv': 'Add another TV',
   'tv_name_hint': 'TV name',
+  'appliances': 'Appliances',
+  'add_appliance': 'Add appliance',
+  'no_appliances': 'No appliances yet',
+  'on': 'On',
+  'off': 'Off',
+  'connection': 'Connection',
+  'brand': 'Brand',
+  'ip_address': 'IP address',
+  'token_optional': 'Token (optional)',
+  'name': 'Name',
+  'builtin_ir': 'Phone IR blaster',
+  'ir_hub': 'Wi-Fi IR hub',
+  'wifi_appliance': 'Smart (Wi-Fi)',
+  'no_ir_emitter': 'This phone has no IR blaster. Use a Wi-Fi IR hub or a smart appliance instead.',
+  'air_conditioner': 'Air Conditioner',
+  'mode': 'Mode',
+  'fan_speed': 'Fan speed',
+  'mode_cool': 'Cool',
+  'mode_heat': 'Heat',
+  'mode_dry': 'Dry',
+  'mode_fan': 'Fan',
+  'mode_auto': 'Auto',
+  'fan_auto': 'Auto',
+  'fan_low': 'Low',
+  'fan_medium': 'Mid',
+  'fan_high': 'High',
+  'swing': 'Swing',
   'connected': 'Connected',
   'connecting': 'Connecting…',
   'disconnected': 'Disconnected',
@@ -274,6 +330,33 @@ const Map<String, String> _ar = {
   'rename': 'إعادة تسمية',
   'add_another_tv': 'إضافة تلفزيون آخر',
   'tv_name_hint': 'اسم التلفزيون',
+  'appliances': 'الأجهزة',
+  'add_appliance': 'إضافة جهاز',
+  'no_appliances': 'لا توجد أجهزة بعد',
+  'on': 'تشغيل',
+  'off': 'إيقاف',
+  'connection': 'الاتصال',
+  'brand': 'العلامة التجارية',
+  'ip_address': 'عنوان IP',
+  'token_optional': 'الرمز (اختياري)',
+  'name': 'الاسم',
+  'builtin_ir': 'أشعة الهاتف',
+  'ir_hub': 'موزّع IR عبر الواي فاي',
+  'wifi_appliance': 'ذكي (واي فاي)',
+  'no_ir_emitter': 'هذا الهاتف لا يملك مُرسل أشعة. استخدم موزّع IR عبر الواي فاي أو جهازاً ذكياً.',
+  'air_conditioner': 'مكيّف',
+  'mode': 'الوضع',
+  'fan_speed': 'سرعة المروحة',
+  'mode_cool': 'تبريد',
+  'mode_heat': 'تدفئة',
+  'mode_dry': 'تجفيف',
+  'mode_fan': 'مروحة',
+  'mode_auto': 'تلقائي',
+  'fan_auto': 'تلقائي',
+  'fan_low': 'منخفض',
+  'fan_medium': 'متوسط',
+  'fan_high': 'عالٍ',
+  'swing': 'تأرجح',
   'connected': 'متصل',
   'connecting': 'جارٍ الاتصال…',
   'disconnected': 'غير متصل',

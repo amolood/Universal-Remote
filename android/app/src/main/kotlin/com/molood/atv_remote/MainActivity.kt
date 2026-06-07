@@ -31,6 +31,26 @@ class MainActivity : FlutterActivity() {
                             result.error("IR_ERROR", e.message, null)
                         }
                     }
+                    // Arbitrary IR burst pattern (microseconds, alternating
+                    // mark/space) — used for air conditioners and other devices
+                    // whose codes aren't simple NEC address/command pairs.
+                    "transmitRaw" -> {
+                        if (ir == null || !ir.hasIrEmitter()) {
+                            result.success(false); return@setMethodCallHandler
+                        }
+                        val pattern = call.argument<List<Int>>("pattern")
+                        val carrier = call.argument<Int>("carrier") ?: 38000
+                        if (pattern == null || pattern.isEmpty()) {
+                            result.error("IR_ERROR", "empty pattern", null)
+                            return@setMethodCallHandler
+                        }
+                        try {
+                            ir.transmit(carrier, pattern.toIntArray())
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("IR_ERROR", e.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

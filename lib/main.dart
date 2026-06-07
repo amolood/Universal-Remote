@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'appliances/appliance_controller.dart';
 import 'atv/atv_controller.dart';
 import 'i18n/strings.dart';
 import 'ui/onboarding_screen.dart';
@@ -24,8 +25,11 @@ class AtvRemoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AtvController()..load(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AtvController()..load()),
+        ChangeNotifierProvider(create: (_) => ApplianceController()..load()),
+      ],
       child: MaterialApp(
         title: 'TV Remote',
         debugShowCheckedModeBanner: false,
