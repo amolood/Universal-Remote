@@ -58,11 +58,13 @@ class _PairingScreenState extends State<PairingScreen> {
     String? name,
     RemoteProtocol protocol = RemoteProtocol.googleTv,
     int port = 6466,
+    String deviceId = '',
   }) async {
     FocusScope.of(context).unfocus();
     Haptics.heavy();
     try {
-      await c.connectOrPair(host, name: name, protocol: protocol, port: port);
+      await c.connectOrPair(host,
+          name: name, protocol: protocol, port: port, deviceId: deviceId);
       // Stage transition (remote / pairing) is driven by the controller.
     } catch (e) {
       _showError(e);
@@ -107,7 +109,7 @@ class _PairingScreenState extends State<PairingScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<AtvController>();
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: AppTheme.bg0,
       body: AuroraBackground(
         child: SafeArea(
@@ -129,6 +131,12 @@ class _PairingScreenState extends State<PairingScreen> {
           ),
         ),
       ),
+    );
+    return Stack(
+      children: [
+        scaffold,
+        if (c.approvalPending) const _ApprovalOverlay(),
+      ],
     );
   }
 
@@ -185,10 +193,19 @@ class _PairingScreenState extends State<PairingScreen> {
   /// Saved TVs first (with an indicator), then newly discovered ones not yet
   /// saved. Empty state shows the radar.
   Widget _tvLists(AtvController c) {
-    final savedKeys =
+    // A discovered TV is "already saved" if we match it by stable device id
+    // (even at a new IP) or, lacking an id, by protocol+host.
+    final savedHostKeys =
         c.pairedTvs.map((t) => '${t.protocol}:${t.host}').toSet();
+    final savedDeviceKeys = c.pairedTvs
+        .where((t) => t.deviceId.isNotEmpty)
+        .map((t) => '${t.protocol}:${t.deviceId}')
+        .toSet();
     final freshDiscovered = c.discovered
-        .where((d) => !savedKeys.contains('${d.protocol}:${d.host}'))
+        .where((d) =>
+            !savedHostKeys.contains('${d.protocol}:${d.host}') &&
+            !(d.deviceId.isNotEmpty &&
+                savedDeviceKeys.contains('${d.protocol}:${d.deviceId}')))
         .toList();
 
     if (c.pairedTvs.isEmpty && freshDiscovered.isEmpty) return _radar(c);
@@ -211,7 +228,8 @@ class _PairingScreenState extends State<PairingScreen> {
                       : () => _selectTv(c, tv.host,
                           name: tv.name,
                           protocol: tv.protocol,
-                          port: tv.port),
+                          port: tv.port,
+                          deviceId: tv.deviceId),
                 ),
               )),
         ],
@@ -232,7 +250,8 @@ class _PairingScreenState extends State<PairingScreen> {
                       : () => _selectTv(c, tv.host,
                           name: tv.name,
                           protocol: tv.protocol,
-                          port: tv.port),
+                          port: tv.port,
+                          deviceId: tv.deviceId),
                 ),
               )),
         ],
@@ -805,6 +824,60 @@ class _RadarPulseState extends State<_RadarPulse>
         border: Border.all(
           color: AppTheme.accent.withValues(alpha: (1 - v) * 0.6),
           width: 2,
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen hint shown while a Samsung/LG TV is waiting for the user to
+/// accept the on-screen approval prompt during first pairing.
+class _ApprovalOverlay extends StatelessWidget {
+  const _ApprovalOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black54,
+        child: Center(
+          child: GlassPanel(
+            radius: AppTheme.rLg,
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.tv_rounded,
+                    color: AppTheme.accent, size: 46),
+                const SizedBox(height: 18),
+                Text(
+                  S.of(context).approvalTitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppTheme.textHi,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 240,
+                  child: Text(
+                    S.of(context).approvalBody,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: AppTheme.textMid, fontSize: 14, height: 1.4),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const SizedBox(
+                  width: 26,
+                  height: 26,
+                  child: CircularProgressIndicator(strokeWidth: 2.4),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

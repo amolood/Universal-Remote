@@ -12,11 +12,17 @@ class DiscoveredTv {
   final int port; // control port for the protocol
   final RemoteProtocol protocol;
 
+  /// Stable identity that survives an IP change: the SSDP USN/UUID, the mDNS
+  /// service instance name, or a device serial. Empty when the responder
+  /// advertised nothing stable — then we fall back to matching on host.
+  final String deviceId;
+
   DiscoveredTv({
     required this.name,
     required this.host,
     required this.port,
     required this.protocol,
+    this.deviceId = '',
   });
 
   @override
@@ -80,8 +86,9 @@ class TvDiscovery {
         socket.send(search(st).codeUnits, target, 1900);
       }
 
-      // host -> protocol (first classification wins)
+      // host -> (protocol, stable device id). First classification wins.
       final classified = <String, RemoteProtocol>{};
+      final ids = <String, String>{};
       final completer = Completer<void>();
       socket.listen((event) {
         if (event != RawSocketEvent.read) return;
@@ -102,7 +109,11 @@ class TvDiscovery {
         } else if (lower.contains('lge') || lower.contains('webos')) {
           proto = RemoteProtocol.lg;
         }
-        if (proto != null) classified.putIfAbsent(host, () => proto!);
+        if (proto != null) {
+          classified.putIfAbsent(host, () => proto!);
+          final id = ssdpDeviceId(text);
+          if (id != null) ids.putIfAbsent(host, () => id);
+        }
       });
       Timer(timeout, () {
         if (!completer.isCompleted) completer.complete();
@@ -112,14 +123,24 @@ class TvDiscovery {
       for (final entry in classified.entries) {
         final host = entry.key;
         final proto = entry.value;
-        final name = proto == RemoteProtocol.roku
-            ? (await _rokuName(host) ?? 'Roku')
-            : proto.label;
+        // Roku exposes a serial in device-info — the most stable id we can get.
+        String name;
+        String deviceId = ids[host] ?? '';
+        if (proto == RemoteProtocol.roku) {
+          final info = await _rokuInfo(host);
+          name = info?.name ?? 'Roku';
+          if (info?.serial != null && info!.serial!.isNotEmpty) {
+            deviceId = 'roku:${info.serial}';
+          }
+        } else {
+          name = proto.label;
+        }
         found['$proto:$host'] = DiscoveredTv(
           name: name,
           host: host,
           port: proto.defaultPort,
           protocol: proto,
+          deviceId: deviceId,
         );
       }
     } catch (_) {
@@ -130,7 +151,20 @@ class TvDiscovery {
     return found.values.toList();
   }
 
-  static Future<String?> _rokuName(String host) async {
+  /// Extracts a stable device identity from an SSDP response. Prefers the UUID
+  /// in the USN header (`USN: uuid:<uuid>::...`), which a device keeps across IP
+  /// changes. Returns null if no UUID is present. Pure for unit testing.
+  static String? ssdpDeviceId(String response) {
+    final usn = RegExp(r'USN:\s*uuid:([0-9a-fA-F-]+)', caseSensitive: false)
+        .firstMatch(response);
+    if (usn != null) return 'uuid:${usn.group(1)!.toLowerCase()}';
+    // Some responders only carry the uuid in the ST/SERVER lines.
+    final any = RegExp(r'uuid:([0-9a-fA-F]{8}-[0-9a-fA-F-]+)')
+        .firstMatch(response);
+    return any != null ? 'uuid:${any.group(1)!.toLowerCase()}' : null;
+  }
+
+  static Future<_RokuInfo?> _rokuInfo(String host) async {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 2);
     try {
@@ -148,7 +182,12 @@ class TvDiscovery {
               .firstMatch(text) ??
           RegExp(r'<model-name>([^<]*)</model-name>').firstMatch(text);
       final name = m?.group(1)?.trim();
-      return (name != null && name.isNotEmpty) ? name : null;
+      final serial =
+          RegExp(r'<serial-number>([^<]*)</serial-number>').firstMatch(text);
+      return _RokuInfo(
+        name: (name != null && name.isNotEmpty) ? name : null,
+        serial: serial?.group(1)?.trim(),
+      );
     } catch (_) {
       return null;
     } finally {
@@ -194,11 +233,14 @@ class TvDiscovery {
             final port = protocol == RemoteProtocol.cvte
                 ? (int.tryParse(wsPort ?? '') ?? srv.port)
                 : srv.port;
+            // The mDNS service instance name is stable across IP changes — a
+            // device keeps its advertised name when its DHCP lease moves.
             found[a.address.address] = DiscoveredTv(
               name: name,
               host: a.address.address,
               port: port,
               protocol: protocol,
+              deviceId: 'mdns:${ptr.domainName}',
             );
           }
         }
@@ -225,4 +267,11 @@ class TvDiscovery {
     final raw = idx > 0 ? domainName.substring(0, idx) : domainName;
     return raw.replaceAll(r'\032', ' ').trim();
   }
+}
+
+/// Name + serial parsed from a Roku's /query/device-info.
+class _RokuInfo {
+  final String? name;
+  final String? serial;
+  const _RokuInfo({this.name, this.serial});
 }

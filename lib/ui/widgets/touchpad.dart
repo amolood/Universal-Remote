@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme.dart';
 import '../../atv/key_codes.dart';
+import '../../i18n/strings.dart';
 import 'glass.dart';
 
 /// A swipe touchpad: drag in a direction to send the matching D-pad key, tap
@@ -90,7 +91,11 @@ class _TouchpadState extends State<Touchpad>
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: GestureDetector(
+      child: Semantics(
+        container: true,
+        label: S.of(context).touchpad,
+        hint: S.of(context).touchpadHint,
+        child: GestureDetector(
       onPanStart: _onPanStart,
       onPanUpdate: _onPanUpdate,
       onTapUp: _onTapUp,
@@ -143,6 +148,7 @@ class _TouchpadState extends State<Touchpad>
             ],
           ),
         ),
+      ),
       ),
       ),
     );

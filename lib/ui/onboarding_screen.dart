@@ -20,29 +20,23 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _controller = PageController();
   int _page = 0;
 
-  List<_Slide> _slides(S s, bool ar) => [
+  List<_Slide> _slides(S s) => [
         _Slide(
           icon: Icons.wifi_tethering_rounded,
-          title: ar ? 'اكتشاف تلقائي' : 'Auto-discovery',
-          body: ar
-              ? 'يعثر التطبيق على تلفزيونك تلقائيًا على نفس شبكة الواي فاي — بدون إعداد.'
-              : 'The app finds your TV automatically on the same Wi-Fi — no setup.',
+          title: s.obDiscoverTitle,
+          body: s.obDiscoverBody,
           color: AppTheme.accent,
         ),
         _Slide(
           icon: Icons.link_rounded,
-          title: ar ? 'اقتران سهل' : 'Easy pairing',
-          body: ar
-              ? 'اختر تلفزيونك وأدخل الرمز الظاهر على الشاشة. يبقى مقترنًا للمرات القادمة.'
-              : 'Pick your TV and enter the code shown on screen. It stays paired next time.',
+          title: s.obPairTitle,
+          body: s.obPairBody,
           color: AppTheme.accent2,
         ),
         _Slide(
           icon: Icons.mic_rounded,
-          title: ar ? 'تحكّم كامل + صوت' : 'Full control + voice',
-          body: ar
-              ? 'لوحة اتجاهات، لوحة لمس، وسائط، كيبورد، وبحث صوتي — كل ما تحتاجه.'
-              : 'D-pad, touchpad, media, keyboard, and voice search — everything you need.',
+          title: s.obControlTitle,
+          body: s.obControlBody,
           color: AppTheme.accentPink,
         ),
       ];
@@ -62,8 +56,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final c = context.watch<AtvController>();
     final s = S.of(context);
-    final ar = c.lang == AppLang.ar;
-    final slides = _slides(s, ar);
+    final slides = _slides(s);
     final isLast = _page == slides.length - 1;
 
     return Scaffold(
@@ -113,7 +106,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: GradientButton(
-                  label: isLast ? (ar ? 'ابدأ' : 'Get started') : (ar ? 'التالي' : 'Next'),
+                  label: isLast ? s.getStarted : s.next,
                   icon: isLast ? Icons.check_rounded : Icons.arrow_forward_rounded,
                   onTap: () {
                     if (isLast) {
@@ -132,7 +125,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 TextButton(
                   onPressed: () => _finish(c),
                   style: TextButton.styleFrom(foregroundColor: AppTheme.textMid),
-                  child: Text(ar ? 'تخطّي' : 'Skip'),
+                  child: Text(s.skip),
                 ),
               const SizedBox(height: 8),
             ],

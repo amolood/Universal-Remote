@@ -1,14 +1,23 @@
-# Universal Remote
+<p align="center">
+  <img src="docs/assets/logo.png" alt="Universal Remote" width="120" />
+</p>
 
-A phone-based universal TV remote built with Flutter. Discover, pair, and control
-TVs and streaming devices on your local network — Android TV / Google TV, CVTE smart
-boards, Roku, Samsung, and LG — plus infrared control for any TV with an IR blaster.
+<h1 align="center">Universal Remote</h1>
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.41-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-3.11-0175C2?logo=dart&logoColor=white)](https://dart.dev)
-[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-555)](#)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Style](https://img.shields.io/badge/style-flutter__lints-40C4FF)](https://pub.dev/packages/flutter_lints)
+<p align="center">
+  A phone-based universal TV remote built with Flutter. Discover, pair, and control
+  TVs and streaming devices on your local network — Android TV / Google TV, CVTE smart
+  boards, Roku, Samsung, and LG — plus infrared control for any TV with an IR blaster.
+</p>
+
+<p align="center">
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.41-02569B?logo=flutter&logoColor=white" alt="Flutter" /></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.11-0175C2?logo=dart&logoColor=white" alt="Dart" /></a>
+  <img src="https://img.shields.io/badge/platform-Android%20%7C%20iOS-555" alt="Platform" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License" /></a>
+  <a href="https://pub.dev/packages/flutter_lints"><img src="https://img.shields.io/badge/style-flutter__lints-40C4FF" alt="Style" /></a>
+  <img src="https://img.shields.io/badge/tests-54%20passing-brightgreen" alt="Tests" />
+</p>
 
 ---
 
@@ -32,6 +41,16 @@ falls back to infrared through the device's IR emitter.
 - Manual connection by IP address with brand selection when discovery is unavailable.
 - Multiple remote layouts: balanced, minimal, touchpad, and classic.
 - English and Arabic interface with full right-to-left support.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/discovery.png" alt="Device discovery" width="220" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/remote.png" alt="Remote control" width="220" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/settings.png" alt="Settings and layouts" width="220" />
+</p>
 
 ## Supported devices
 
@@ -127,6 +146,18 @@ The app requests only what each feature needs:
 - `TRANSMIT_IR` for infrared control on devices with an IR emitter.
 
 No data leaves the device; all control traffic stays on the local network.
+
+## Security and privacy
+
+- Per-TV credentials — Google TV client certificates, and the Samsung token and
+  LG client-key — are stored in the OS keystore (Android Keystore / iOS Keychain)
+  via `flutter_secure_storage`, never in plaintext preferences.
+- Only non-sensitive metadata (name, address, protocol) is kept in shared
+  preferences; secrets live in secure storage keyed by a stable device id.
+- A paired TV is remembered by a stable device identity (SSDP UUID, mDNS service
+  name, or serial), so it is still recognised after its IP address changes on the
+  network — no need to pair again.
+- All control traffic is local; the app has no backend and collects no telemetry.
 
 ## Project information
 

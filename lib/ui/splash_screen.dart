@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../i18n/strings.dart';
 import 'theme.dart';
 import 'widgets/aurora_background.dart';
 
@@ -64,9 +65,10 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Connecting your screen',
-                  style: TextStyle(color: AppTheme.textMid, fontSize: 14),
+                Text(
+                  S.of(context).appTagline,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppTheme.textMid, fontSize: 14),
                 ),
               ],
             ),

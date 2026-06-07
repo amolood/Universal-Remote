@@ -52,3 +52,6 @@ android/key.properties
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Editor settings
+.vscode/

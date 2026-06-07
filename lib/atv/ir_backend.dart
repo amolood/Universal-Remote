@@ -81,9 +81,13 @@ class IrBackend implements RemoteBackend {
     }
   }
 
+  /// The NEC command byte for a keycode, or null if this IR set has no mapping.
+  /// Pure and static for unit testing.
+  static int? necCodeFor(int keyCode) => _necCodes[keyCode];
+
   @override
   void sendKey(int keyCode) {
-    final code = _necCodes[keyCode];
+    final code = necCodeFor(keyCode);
     if (code != null) _emitNec(code);
   }
 

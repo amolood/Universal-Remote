@@ -198,64 +198,64 @@ class LgBackend implements RemoteBackend {
     p.sink.add('type:button\nname:$name\n\n');
   }
 
-  @override
-  void sendKey(int keyCode) {
+  /// Maps an Android keycode to the LG command it should send. Pure and static
+  /// so it can be unit-tested; [sendKey] just dispatches the result to the right
+  /// transport (pointer socket for buttons, SSAP request for everything else).
+  /// Returns null for keys LG doesn't support.
+  static LgCommand? lgCommandFor(int keyCode) {
     switch (keyCode) {
       case KeyCode.dpadUp:
-        _button('UP');
-        break;
+        return const LgCommand.button('UP');
       case KeyCode.dpadDown:
-        _button('DOWN');
-        break;
+        return const LgCommand.button('DOWN');
       case KeyCode.dpadLeft:
-        _button('LEFT');
-        break;
+        return const LgCommand.button('LEFT');
       case KeyCode.dpadRight:
-        _button('RIGHT');
-        break;
+        return const LgCommand.button('RIGHT');
       case KeyCode.dpadCenter:
-        _button('ENTER');
-        break;
+        return const LgCommand.button('ENTER');
       case KeyCode.back:
-        _button('BACK');
-        break;
+        return const LgCommand.button('BACK');
       case KeyCode.home:
-        _button('HOME');
-        break;
+        return const LgCommand.button('HOME');
       case KeyCode.menu:
-        _button('MENU');
-        break;
+        return const LgCommand.button('MENU');
       case KeyCode.info:
-        _button('INFO');
-        break;
+        return const LgCommand.button('INFO');
       case KeyCode.volumeUp:
-        _request('ssap://audio/volumeUp');
-        break;
+        return const LgCommand.request('ssap://audio/volumeUp');
       case KeyCode.volumeDown:
-        _request('ssap://audio/volumeDown');
-        break;
+        return const LgCommand.request('ssap://audio/volumeDown');
       case KeyCode.volumeMute:
       case KeyCode.mute:
-        _request('ssap://audio/setMute', {'mute': true});
-        break;
+        return const LgCommand.request('ssap://audio/setMute', {'mute': true});
       case KeyCode.channelUp:
-        _request('ssap://tv/channelUp');
-        break;
+        return const LgCommand.request('ssap://tv/channelUp');
       case KeyCode.channelDown:
-        _request('ssap://tv/channelDown');
-        break;
+        return const LgCommand.request('ssap://tv/channelDown');
       case KeyCode.power:
-        _request('ssap://system/turnOff');
-        break;
+        return const LgCommand.request('ssap://system/turnOff');
       case KeyCode.mediaPlayPause:
       case KeyCode.mediaPlay:
-        _request('ssap://media.controls/play');
-        break;
+        return const LgCommand.request('ssap://media.controls/play');
       case KeyCode.mediaPause:
-        _request('ssap://media.controls/pause');
-        break;
+        return const LgCommand.request('ssap://media.controls/pause');
       default:
-        if (keyCode >= 7 && keyCode <= 16) _button('${keyCode - 7}');
+        if (keyCode >= 7 && keyCode <= 16) {
+          return LgCommand.button('${keyCode - 7}');
+        }
+        return null;
+    }
+  }
+
+  @override
+  void sendKey(int keyCode) {
+    final cmd = lgCommandFor(keyCode);
+    if (cmd == null) return;
+    if (cmd.isButton) {
+      _button(cmd.value);
+    } else {
+      _request(cmd.value, cmd.payload);
     }
   }
 
@@ -315,4 +315,21 @@ class LgUnauthorized implements Exception {
   const LgUnauthorized();
   @override
   String toString() => 'LG TV refused the remote (unauthorized).';
+}
+
+/// A resolved LG command: either a pointer-socket button or an SSAP request.
+class LgCommand {
+  /// 'button' for the pointer socket, 'request' for an SSAP call.
+  final bool isButton;
+
+  /// Button name (e.g. 'UP') or SSAP uri (e.g. 'ssap://audio/volumeUp').
+  final String value;
+
+  /// Optional payload for SSAP requests.
+  final Map<String, dynamic>? payload;
+
+  const LgCommand.button(this.value)
+      : isButton = true,
+        payload = null;
+  const LgCommand.request(this.value, [this.payload]) : isButton = false;
 }

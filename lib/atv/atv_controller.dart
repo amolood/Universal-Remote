@@ -18,6 +18,7 @@ import 'log.dart';
 import 'roku_backend.dart';
 import 'samsung_backend.dart';
 import 'paired_tv.dart';
+import 'secret_store.dart';
 import 'pairing_client.dart';
 import 'remote_client.dart';
 import 'voice_mic.dart';
@@ -91,6 +92,9 @@ class AtvController extends ChangeNotifier {
   static const _kHost = 'atv_host';
   static const _kName = 'atv_name';
 
+  /// Secure store for per-TV credentials (certs, keys, Samsung/LG tokens).
+  final SecretStore _secrets = SecretStore();
+
   /// All TVs we've paired with, most-recently-used first.
   List<PairedTv> pairedTvs = [];
 
@@ -102,6 +106,7 @@ class AtvController extends ChangeNotifier {
   ClientCertificate? _pendingCert;
   String? _pendingHost;
   String? _pendingName;
+  String _pendingDeviceId = '';
   RemoteProtocol _pendingProtocol = RemoteProtocol.googleTv;
 
   PairingClient? _pairing;
@@ -119,6 +124,10 @@ class AtvController extends ChangeNotifier {
   bool busy = false;
   AppStage stage = AppStage.discovery;
   bool loading = true;
+
+  /// True while we're waiting for the user to accept an on-screen approval on
+  /// a Samsung/LG TV during first-time pairing. Drives a UI hint.
+  bool approvalPending = false;
 
   List<DiscoveredTv> discovered = const [];
   bool scanning = false;
@@ -160,7 +169,26 @@ class AtvController extends ChangeNotifier {
     // splash) rather than load + a fixed penalty.
     final minSplash = Future<void>.delayed(const Duration(milliseconds: 700));
     final prefs = await SharedPreferences.getInstance();
-    pairedTvs = PairedTv.decodeList(prefs.getString(_kTvs));
+    final rawTvs = prefs.getString(_kTvs);
+
+    if (PairedTv.listHasInlineSecrets(rawTvs)) {
+      // Upgrade: older builds kept cert/key/token inline in SharedPreferences.
+      // Move every secret into the OS keystore, then rewrite the list without
+      // them so the plaintext copy is gone after this run.
+      final legacy = PairedTv.decodeList(rawTvs, legacy: true);
+      for (final tv in legacy) {
+        await _secrets.write(tv.id, tv.secrets);
+      }
+      pairedTvs = legacy.map((t) => t.withSecrets(t.secrets)).toList();
+      await _persist();
+    } else {
+      pairedTvs = PairedTv.decodeList(rawTvs);
+      // Rehydrate each TV's credentials from secure storage.
+      for (var i = 0; i < pairedTvs.length; i++) {
+        final s = await _secrets.read(pairedTvs[i].id);
+        if (!s.isEmpty) pairedTvs[i] = pairedTvs[i].withSecrets(s);
+      }
+    }
     layout = RemoteLayout.values.firstWhere(
       (l) => l.name == prefs.getString(_kLayout),
       orElse: () => RemoteLayout.balanced,
@@ -187,15 +215,15 @@ class AtvController extends ChangeNotifier {
       final k = prefs.getString(_kKeyPem);
       final h = prefs.getString(_kHost);
       if (c != null && k != null && h != null) {
-        pairedTvs = [
-          PairedTv(
-            host: h,
-            name: prefs.getString(_kName) ?? 'TV',
-            certPem: c,
-            keyPem: k,
-            lastUsed: _now(),
-          )
-        ];
+        final migrated = PairedTv(
+          host: h,
+          name: prefs.getString(_kName) ?? 'TV',
+          certPem: c,
+          keyPem: k,
+          lastUsed: _now(),
+        );
+        await _secrets.write(migrated.id, migrated.secrets);
+        pairedTvs = [migrated];
         await _persist();
         await prefs.remove(_kCertPem);
         await prefs.remove(_kKeyPem);
@@ -220,7 +248,12 @@ class AtvController extends ChangeNotifier {
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
+    // Metadata only — never write cert/key/token to SharedPreferences.
     await prefs.setString(_kTvs, PairedTv.encodeList(pairedTvs));
+    // Secrets go to the OS keystore, keyed per TV.
+    for (final tv in pairedTvs) {
+      if (!tv.secrets.isEmpty) await _secrets.write(tv.id, tv.secrets);
+    }
   }
 
   void _upsert(PairedTv tv) {
@@ -240,6 +273,7 @@ class AtvController extends ChangeNotifier {
     pairedTvs.removeWhere(
         (t) => t.host == target.host && t.protocol == target.protocol);
     if (sameActive) _active = null;
+    await _secrets.delete(target.id); // wipe credentials from the keystore
     await _persist();
     connection = RemoteConnectionState.disconnected;
     if (_active == null) stage = AppStage.discovery;
@@ -249,6 +283,18 @@ class AtvController extends ChangeNotifier {
   PairedTv? _savedForHostProto(String host, RemoteProtocol protocol) {
     final m = pairedTvs.where((t) => t.host == host && t.protocol == protocol);
     return m.isEmpty ? null : m.first;
+  }
+
+  /// Finds a saved TV by stable device id first (survives IP changes), then by
+  /// host. [deviceId] may be empty (manual entries / responders with no UUID).
+  PairedTv? _savedForDevice(
+      String deviceId, String host, RemoteProtocol protocol) {
+    if (deviceId.isNotEmpty) {
+      final byId = pairedTvs
+          .where((t) => t.deviceId == deviceId && t.protocol == protocol);
+      if (byId.isNotEmpty) return byId.first;
+    }
+    return _savedForHostProto(host, protocol);
   }
 
   // ---------------- Settings ----------------
@@ -317,25 +363,35 @@ class AtvController extends ChangeNotifier {
     String? name,
     RemoteProtocol protocol = RemoteProtocol.googleTv,
     int port = 6466,
+    String deviceId = '',
   }) async {
     _setBusy(true);
     lastError = null;
     _userDisconnected = false;
     _retryCount = 0;
     try {
-      // Reconnect to a saved TV directly.
-      final saved = _savedForHostProto(host, protocol);
+      // Reconnect to a saved TV directly. Match by stable device id first (so a
+      // changed IP still finds it), then fall back to host.
+      final saved = _savedForDevice(deviceId, host, protocol);
       if (saved != null) {
-        _active = saved.copyWith(name: name);
+        // The TV may have moved to a new IP — re-bind the saved record to the
+        // address we just discovered it at.
+        final rebound =
+            saved.host != host ? saved.copyWith(host: host) : saved;
+        if (saved.host != host) {
+          _upsert(rebound);
+          await _persist();
+        }
+        _active = rebound.copyWith(name: name);
         try {
-          await _openControl(saved);
-          _markUsed(saved);
+          await _openControl(rebound);
+          _markUsed(rebound);
           stage = AppStage.remote;
           notifyListeners();
           return;
         } catch (e) {
           // Fall through to (re)pair / reconnect.
-          atvLog('reconnect saved ${saved.protocol.name}', e);
+          atvLog('reconnect saved ${rebound.protocol.name}', e);
         }
       }
 
@@ -347,9 +403,19 @@ class AtvController extends ChangeNotifier {
           name: (name?.isNotEmpty ?? false) ? name! : protocol.label,
           protocol: protocol,
           port: port,
+          deviceId: deviceId,
           lastUsed: _now(),
         );
         _active = tv;
+        // First Samsung/LG connect pops an approval prompt on the TV — tell the
+        // user to look at the screen while we wait for them to accept.
+        final needsApproval = (protocol == RemoteProtocol.samsung ||
+                protocol == RemoteProtocol.lg) &&
+            tv.authToken.isEmpty;
+        if (needsApproval) {
+          approvalPending = true;
+          notifyListeners();
+        }
         try {
           await _openControl(tv);
         } catch (e) {
@@ -358,6 +424,11 @@ class AtvController extends ChangeNotifier {
               '${protocol == RemoteProtocol.samsung || protocol == RemoteProtocol.lg ? ', and accept the prompt on the TV' : ''}.';
           notifyListeners();
           rethrow;
+        } finally {
+          if (approvalPending) {
+            approvalPending = false;
+            notifyListeners();
+          }
         }
         _upsert(tv);
         await _persist();
@@ -368,7 +439,7 @@ class AtvController extends ChangeNotifier {
 
       // Google TV -> pairing-code flow.
       try {
-        await _beginPairing(host, name: name);
+        await _beginPairing(host, name: name, deviceId: deviceId);
       } on PairingException {
         // Distinguish "TV not in pairing mode" from other failures so the UI
         // can tell the user what to do. Probe both ports concurrently so the
@@ -410,6 +481,7 @@ class AtvController extends ChangeNotifier {
         name: tv.name,
         protocol: tv.protocol,
         port: tv.port,
+        deviceId: tv.deviceId,
       );
 
   void _markUsed(PairedTv tv) {
@@ -421,11 +493,14 @@ class AtvController extends ChangeNotifier {
 
   // ---------------- Pairing (Google TV only) ----------------
 
-  Future<void> _beginPairing(String host, {String? name}) async {
-    final saved = _savedForHostProto(host, RemoteProtocol.googleTv);
+  Future<void> _beginPairing(String host,
+      {String? name, String deviceId = ''}) async {
+    final saved =
+        _savedForDevice(deviceId, host, RemoteProtocol.googleTv);
     _pendingCert = saved?.cert ?? await compute(_generateCert, null);
     _pendingHost = host;
     _pendingName = name ?? saved?.name;
+    _pendingDeviceId = deviceId.isNotEmpty ? deviceId : (saved?.deviceId ?? '');
     _pendingProtocol = RemoteProtocol.googleTv;
     _pairing?.dispose();
     _pairing = PairingClient(host: host, cert: _pendingCert!);
@@ -453,6 +528,7 @@ class AtvController extends ChangeNotifier {
         port: 6466,
         certPem: _pendingCert!.certificatePem,
         keyPem: _pendingCert!.privateKeyPem,
+        deviceId: _pendingDeviceId,
         lastUsed: _now(),
       );
       _upsert(tv);

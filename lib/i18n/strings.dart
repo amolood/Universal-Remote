@@ -83,6 +83,15 @@ class S {
   String get about => _t('about');
   String get language => _t('language');
   String get appTagline => _t('app_tagline');
+  String get obDiscoverTitle => _t('ob_discover_title');
+  String get obDiscoverBody => _t('ob_discover_body');
+  String get obPairTitle => _t('ob_pair_title');
+  String get obPairBody => _t('ob_pair_body');
+  String get obControlTitle => _t('ob_control_title');
+  String get obControlBody => _t('ob_control_body');
+  String get next => _t('next');
+  String get getStarted => _t('get_started');
+  String get skip => _t('skip');
   String get layoutBalanced => _t('layout_balanced');
   String get layoutMinimal => _t('layout_minimal');
   String get layoutTouchpad => _t('layout_touchpad');
@@ -117,6 +126,9 @@ class S {
   String get chShort => _t('ch_short');
   String get playPause => _t('play_pause');
   String get touchpad => _t('touchpad');
+  String get touchpadHint => _t('touchpad_hint');
+  String get approvalTitle => _t('approval_title');
+  String get approvalBody => _t('approval_body');
   String get dpad => _t('dpad');
   String get reconnect => _t('reconnect');
 
@@ -173,6 +185,18 @@ const Map<String, String> _en = {
   'about': 'About',
   'language': 'Language',
   'app_tagline': 'Universal — Android TV & Smart Board',
+  'ob_discover_title': 'Auto-discovery',
+  'ob_discover_body':
+      'The app finds your TV automatically on the same Wi-Fi — no setup.',
+  'ob_pair_title': 'Easy pairing',
+  'ob_pair_body':
+      'Pick your TV and enter the code shown on screen. It stays paired next time.',
+  'ob_control_title': 'Full control + voice',
+  'ob_control_body':
+      'D-pad, touchpad, media, keyboard, and voice search — everything you need.',
+  'next': 'Next',
+  'get_started': 'Get started',
+  'skip': 'Skip',
   'layout_balanced': 'Balanced',
   'layout_minimal': 'Minimal',
   'layout_touchpad': 'Touchpad',
@@ -205,6 +229,10 @@ const Map<String, String> _en = {
   'ch_short': 'CH',
   'play_pause': 'Play / Pause',
   'touchpad': 'Touchpad',
+  'touchpad_hint': 'Swipe to move, tap to select',
+  'approval_title': 'Check your TV',
+  'approval_body':
+      'Accept the connection prompt shown on your TV screen to finish pairing.',
   'dpad': 'D-Pad',
   'reconnect': 'Reconnect',
 };
@@ -252,6 +280,18 @@ const Map<String, String> _ar = {
   'about': 'حول التطبيق',
   'language': 'اللغة',
   'app_tagline': 'ريموت عالمي — Android TV والسبورة الذكية',
+  'ob_discover_title': 'اكتشاف تلقائي',
+  'ob_discover_body':
+      'يعثر التطبيق على تلفزيونك تلقائيًا على نفس شبكة الواي فاي — بدون إعداد.',
+  'ob_pair_title': 'اقتران سهل',
+  'ob_pair_body':
+      'اختر تلفزيونك وأدخل الرمز الظاهر على الشاشة. يبقى مقترنًا للمرات القادمة.',
+  'ob_control_title': 'تحكّم كامل + صوت',
+  'ob_control_body':
+      'لوحة اتجاهات، لوحة لمس، وسائط، كيبورد، وبحث صوتي — كل ما تحتاجه.',
+  'next': 'التالي',
+  'get_started': 'ابدأ',
+  'skip': 'تخطّي',
   'layout_balanced': 'متوازن',
   'layout_minimal': 'مبسّط',
   'layout_touchpad': 'لوحة لمس',
@@ -284,6 +324,10 @@ const Map<String, String> _ar = {
   'ch_short': 'القناة',
   'play_pause': 'تشغيل / إيقاف',
   'touchpad': 'لوحة لمس',
+  'touchpad_hint': 'اسحب للتحريك، انقر للاختيار',
+  'approval_title': 'تحقق من تلفزيونك',
+  'approval_body':
+      'اقبل طلب الاتصال الظاهر على شاشة التلفزيون لإكمال الاقتران.',
   'dpad': 'لوحة اتجاهات',
   'reconnect': 'إعادة الاتصال',
 };
