@@ -1,4 +1,5 @@
 import 'appliance.dart';
+import 'ac_brand_encoders.dart';
 
 /// Encodes an [AcState] into a raw IR burst pattern (microseconds, alternating
 /// mark/space) for a given AC brand/protocol.
@@ -25,6 +26,22 @@ abstract class AcIrEncoder {
 class AcIrProtocols {
   static final List<AcIrEncoder> all = [
     GreeAcEncoder(),
+    // Real per-brand stateful encoders (ported from IRremoteESP8266 — see
+    // ac_brand_encoders.dart and docs/ir_protocols_research.md).
+    CoolixAcEncoder(),
+    MideaAcEncoder(),
+    DaikinAcEncoder(),
+    PanasonicAcAcEncoder(),
+    ToshibaAcAcEncoder(),
+    HitachiAcAcEncoder(),
+    LgAcAcEncoder(),
+    SamsungAcAcEncoder(),
+    HaierAcAcEncoder(),
+    KelonAcEncoder(),
+    Tcl112AcAcEncoder(),
+    ElectraAcAcEncoder(),
+    WhirlpoolAcAcEncoder(),
+    SharpAcAcEncoder(),
   ];
 
   static AcIrEncoder? byId(String id) {
