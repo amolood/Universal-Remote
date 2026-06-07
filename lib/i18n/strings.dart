@@ -89,6 +89,7 @@ class S {
   String get fanMedium => _t('fan_medium');
   String get fanHigh => _t('fan_high');
   String get swing => _t('swing');
+  String get commandFailed => _t('command_failed');
   String get searchingDevices => _t('searching_devices');
   String get foundDevices => _t('found_devices');
   String get noDevicesFound => _t('no_devices_found');
@@ -261,6 +262,7 @@ const Map<String, String> _en = {
   'fan_medium': 'Mid',
   'fan_high': 'High',
   'swing': 'Swing',
+  'command_failed': 'Couldn\'t reach the device',
   'searching_devices': 'Searching for devices…',
   'found_devices': 'Found devices',
   'no_devices_found': 'No devices found on the network. Enter the address manually below.',
@@ -420,6 +422,7 @@ const Map<String, String> _ar = {
   'fan_medium': 'متوسط',
   'fan_high': 'عالٍ',
   'swing': 'تأرجح',
+  'command_failed': 'تعذّر الوصول إلى الجهاز',
   'searching_devices': 'جارٍ البحث عن الأجهزة…',
   'found_devices': 'أجهزة موجودة',
   'no_devices_found': 'لم يُعثر على أجهزة في الشبكة. أدخل العنوان يدويًا بالأسفل.',

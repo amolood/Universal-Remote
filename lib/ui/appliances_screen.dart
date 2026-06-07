@@ -285,6 +285,37 @@ Widget _panelFor(Appliance a) {
   }
 }
 
+/// Shows a transient "couldn't reach the device" message. Used when an
+/// appliance command (IR send / Wi-Fi request) comes back unsuccessful.
+void _showSendError(BuildContext context) {
+  Haptics.heavy();
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  if (messenger == null) return;
+  messenger
+    ..clearSnackBars()
+    ..showSnackBar(SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: AppTheme.surface,
+      content: Row(children: [
+        const Icon(Icons.error_outline_rounded,
+            color: AppTheme.danger, size: 20),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(S.of(context).commandFailed,
+              style: const TextStyle(color: AppTheme.textHi)),
+        ),
+      ]),
+    ));
+}
+
+/// Fire-and-forget a key-based command, surfacing a snackbar if it fails.
+void _sendKeyWithFeedback(BuildContext context, Appliance a, DeviceKey key) {
+  Haptics.tap();
+  context.read<ApplianceController>().sendDeviceKey(a, key).then((ok) {
+    if (!ok && context.mounted) _showSendError(context);
+  });
+}
+
 /// Dialog to rename an appliance. Disposes its controller after closing.
 Future<String?> _promptApplianceName(BuildContext context, String current) {
   final s = S.of(context);
@@ -842,9 +873,16 @@ class _AcPanelScreenState extends State<AcPanelScreen> {
       Provider.of<ApplianceController>(context, listen: false);
 
   Future<void> _apply(AcState next) async {
+    final prev = _state;
     setState(() => _state = next);
     Haptics.tap();
-    await _c.applyAc(widget.appliance, next);
+    final ok = await _c.applyAc(widget.appliance, next);
+    if (!ok && mounted) {
+      // The command didn't reach the device — revert the optimistic change so
+      // the panel reflects reality, and tell the user.
+      setState(() => _state = prev);
+      _showSendError(context);
+    }
   }
 
   @override
@@ -1265,9 +1303,14 @@ class _FanPanelScreenState extends State<FanPanelScreen> {
       Provider.of<ApplianceController>(context, listen: false);
 
   Future<void> _apply(FanState next) async {
+    final prev = _state;
     setState(() => _state = next);
     Haptics.tap();
-    await _c.applyFan(widget.appliance, next);
+    final ok = await _c.applyFan(widget.appliance, next);
+    if (!ok && mounted) {
+      setState(() => _state = prev);
+      _showSendError(context);
+    }
   }
 
   @override
@@ -1375,9 +1418,14 @@ class _LightPanelScreenState extends State<LightPanelScreen> {
       Provider.of<ApplianceController>(context, listen: false);
 
   Future<void> _apply(LightState next) async {
+    final prev = _state;
     setState(() => _state = next);
     Haptics.tap();
-    await _c.applyLight(widget.appliance, next);
+    final ok = await _c.applyLight(widget.appliance, next);
+    if (!ok && mounted) {
+      setState(() => _state = prev);
+      _showSendError(context);
+    }
   }
 
   @override
@@ -1452,8 +1500,7 @@ class TvPanelScreen extends StatelessWidget {
   const TvPanelScreen({super.key, required this.appliance});
 
   void _key(BuildContext context, DeviceKey k) {
-    Haptics.tap();
-    context.read<ApplianceController>().sendDeviceKey(appliance, k);
+    _sendKeyWithFeedback(context, appliance, k);
   }
 
   @override
@@ -1629,8 +1676,7 @@ class GenericPanelScreen extends StatelessWidget {
   const GenericPanelScreen({super.key, required this.appliance});
 
   void _key(BuildContext context, DeviceKey k) {
-    Haptics.tap();
-    context.read<ApplianceController>().sendDeviceKey(appliance, k);
+    _sendKeyWithFeedback(context, appliance, k);
   }
 
   @override
@@ -1838,8 +1884,7 @@ class AudioPanelScreen extends StatelessWidget {
   bool get _isRadio => appliance.kind == ApplianceKind.radio;
 
   void _key(BuildContext context, DeviceKey k) {
-    Haptics.tap();
-    context.read<ApplianceController>().sendDeviceKey(appliance, k);
+    _sendKeyWithFeedback(context, appliance, k);
   }
 
   @override
@@ -1938,8 +1983,7 @@ class MediaPanelScreen extends StatelessWidget {
   const MediaPanelScreen({super.key, required this.appliance});
 
   void _key(BuildContext context, DeviceKey k) {
-    Haptics.tap();
-    context.read<ApplianceController>().sendDeviceKey(appliance, k);
+    _sendKeyWithFeedback(context, appliance, k);
   }
 
   @override
@@ -2023,8 +2067,7 @@ class SetTopBoxPanelScreen extends StatelessWidget {
   const SetTopBoxPanelScreen({super.key, required this.appliance});
 
   void _key(BuildContext context, DeviceKey k) {
-    Haptics.tap();
-    context.read<ApplianceController>().sendDeviceKey(appliance, k);
+    _sendKeyWithFeedback(context, appliance, k);
   }
 
   @override
@@ -2089,8 +2132,7 @@ class ProjectorPanelScreen extends StatelessWidget {
   const ProjectorPanelScreen({super.key, required this.appliance});
 
   void _key(BuildContext context, DeviceKey k) {
-    Haptics.tap();
-    context.read<ApplianceController>().sendDeviceKey(appliance, k);
+    _sendKeyWithFeedback(context, appliance, k);
   }
 
   @override
@@ -2160,9 +2202,14 @@ class _HeaterPanelScreenState extends State<HeaterPanelScreen> {
       Provider.of<ApplianceController>(context, listen: false);
 
   Future<void> _apply(HeaterState next) async {
+    final prev = _state;
     setState(() => _state = next);
     Haptics.tap();
-    await _c.applyHeater(widget.appliance, next);
+    final ok = await _c.applyHeater(widget.appliance, next);
+    if (!ok && mounted) {
+      setState(() => _state = prev);
+      _showSendError(context);
+    }
   }
 
   @override
