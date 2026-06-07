@@ -128,10 +128,14 @@ class SamsungBackend implements RemoteBackend {
     _setState(RemoteConnectionState.disconnected);
   }
 
-  void _sendKey(String key) {
+  void _send(Map<String, dynamic> msg) {
     final ch = _channel;
     if (ch == null) return;
-    ch.sink.add(jsonEncode({
+    ch.sink.add(jsonEncode(msg));
+  }
+
+  void _sendKey(String key) {
+    _send({
       'method': 'ms.remote.control',
       'params': {
         'Cmd': 'Click',
@@ -139,7 +143,7 @@ class SamsungBackend implements RemoteBackend {
         'Option': 'false',
         'TypeOfRemote': 'SendRemoteKey',
       },
-    }));
+    });
   }
 
   static String? samsungKeyFor(int keyCode) {
@@ -200,14 +204,44 @@ class SamsungBackend implements RemoteBackend {
     if (k != null) _sendKey(k);
   }
 
+  /// Builds the Tizen channel-emit message to launch an app. `id` is the app id
+  /// (e.g. '11101200001' = Netflix, '3201608010191' = YouTube). Pure for tests.
+  static Map<String, dynamic> launchAppMessage(String id) => {
+        'method': 'ms.channel.emit',
+        'params': {
+          'event': 'ed.apps.launch',
+          'to': 'host',
+          'data': {
+            // 'DEEP_LINK' opens a URL; 'NATIVE_LAUNCH' just starts the app.
+            'action_type':
+                id.startsWith('http') ? 'DEEP_LINK' : 'NATIVE_LAUNCH',
+            'appId': id,
+          },
+        },
+      };
+
+  /// Builds the Tizen IME message that types [text] into the focused field.
+  /// The string is base64-encoded UTF-8. Pure for tests.
+  static Map<String, dynamic> inputTextMessage(String text) => {
+        'method': 'ms.remote.control',
+        'params': {
+          'Cmd': base64.encode(utf8.encode(text)),
+          'DataOfCmd': 'base64',
+          'TypeOfRemote': 'SendInputString',
+        },
+      };
+
   @override
   void launchApp(String uri) {
-    // Tizen app launch uses a different channel; left as a no-op for now.
+    final id = uri.trim();
+    if (id.isEmpty) return;
+    _send(launchAppMessage(id));
   }
 
   @override
   void sendText(String text) {
-    // Samsung text input uses base64 IME messages; out of scope here.
+    if (text.isEmpty) return;
+    _send(inputTextMessage(text));
   }
 
   @override

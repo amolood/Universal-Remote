@@ -20,25 +20,44 @@ class AirMouse {
   /// Dead zone (rad/s) below which motion is ignored.
   final double deadZone;
 
-  AirMouse({this.sensitivity = 14.0, this.deadZone = 0.02});
+  /// Low-pass smoothing factor in [0,1): each sample is blended with the
+  /// previous filtered value as `out = out*(1-a) + sample*a`. Lower = smoother
+  /// but laggier; higher = snappier but jitterier. 0 disables smoothing.
+  final double smoothing;
+
+  AirMouse({
+    this.sensitivity = 14.0,
+    this.deadZone = 0.02,
+    this.smoothing = 0.35,
+  });
+
+  // Filtered velocity carried between samples.
+  double _fx = 0, _fy = 0;
 
   bool get isRunning => _sub != null;
 
   /// Starts emitting (dx, dy) pointer deltas to [onMove] until [stop].
   void start(void Function(double dx, double dy) onMove) {
     _sub?.cancel();
+    _fx = 0;
+    _fy = 0;
+    final a = smoothing.clamp(0.0, 1.0);
     _sub = gyroscopeEventStream(
       samplingPeriod: const Duration(milliseconds: 16), // ~60Hz
     ).listen((e) {
       // Map device axes to screen axes (portrait hold):
       //   yaw   = e.z -> horizontal (invert so rotating right moves right)
       //   pitch = e.x -> vertical
-      var dx = -e.z;
-      var dy = -e.x;
-      if (dx.abs() < deadZone) dx = 0;
-      if (dy.abs() < deadZone) dy = 0;
-      if (dx == 0 && dy == 0) return;
-      onMove(dx * sensitivity, dy * sensitivity);
+      var rx = -e.z;
+      var ry = -e.x;
+      if (rx.abs() < deadZone) rx = 0;
+      if (ry.abs() < deadZone) ry = 0;
+      // Exponential moving average smooths out gyroscope noise/jitter.
+      _fx = a == 0 ? rx : _fx * (1 - a) + rx * a;
+      _fy = a == 0 ? ry : _fy * (1 - a) + ry * a;
+      // Snap tiny residuals to zero so the cursor settles when the hand stops.
+      if (_fx.abs() < 1e-3 && _fy.abs() < 1e-3) return;
+      onMove(_fx * sensitivity, _fy * sensitivity);
     });
   }
 

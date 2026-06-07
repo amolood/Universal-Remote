@@ -56,6 +56,10 @@ class S {
   String get codeShowingOnTv => _t('code_on_tv');
   String get pair => _t('pair');
   String get cancel => _t('cancel');
+  String get save => _t('save');
+  String get rename => _t('rename');
+  String get addAnotherTv => _t('add_another_tv');
+  String get tvNameHint => _t('tv_name_hint');
 
   // --- Remote ---
   String get connected => _t('connected');
@@ -166,6 +170,10 @@ const Map<String, String> _en = {
   'code_on_tv': 'A 6-character code is showing on your TV.',
   'pair': 'Pair',
   'cancel': 'Cancel',
+  'save': 'Save',
+  'rename': 'Rename',
+  'add_another_tv': 'Add another TV',
+  'tv_name_hint': 'TV name',
   'connected': 'Connected',
   'connecting': 'Connecting…',
   'disconnected': 'Disconnected',
@@ -262,6 +270,10 @@ const Map<String, String> _ar = {
   'code_on_tv': 'يظهر رمز من 6 خانات على تلفزيونك.',
   'pair': 'اقتران',
   'cancel': 'إلغاء',
+  'save': 'حفظ',
+  'rename': 'إعادة تسمية',
+  'add_another_tv': 'إضافة تلفزيون آخر',
+  'tv_name_hint': 'اسم التلفزيون',
   'connected': 'متصل',
   'connecting': 'جارٍ الاتصال…',
   'disconnected': 'غير متصل',

@@ -264,6 +264,23 @@ class AtvController extends ChangeNotifier {
     _sortTvs();
   }
 
+  /// The TV currently being controlled (null before any pairing).
+  PairedTv? get activeTv => _active;
+
+  /// Renames a paired TV (the active one if [tv] is omitted) and persists it.
+  Future<void> rename(String newName, [PairedTv? tv]) async {
+    final target = tv ?? _active;
+    final name = newName.trim();
+    if (target == null || name.isEmpty || name == target.name) return;
+    final updated = target.copyWith(name: name);
+    _upsert(updated);
+    if (_active?.host == target.host && _active?.protocol == target.protocol) {
+      _active = updated;
+    }
+    await _persist();
+    notifyListeners();
+  }
+
   /// Removes the active (or given) TV's pairing.
   Future<void> forget([PairedTv? tv]) async {
     final target = tv ?? _active;

@@ -311,28 +311,44 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  c.tvName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textHi,
+            // Tapping the name opens a quick switcher across saved TVs.
+            child: InkWell(
+              borderRadius: BorderRadius.circular(AppTheme.rSm),
+              onTap: () => _openTvSwitcher(context, c),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          c.tvName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textHi,
+                          ),
+                        ),
+                      ),
+                      if (c.pairedTvs.length > 1) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.expand_more_rounded,
+                            size: 22, color: AppTheme.textMid),
+                      ],
+                    ],
                   ),
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    _PulsingDot(color: color),
-                    const SizedBox(width: 7),
-                    Text(label, style: TextStyle(color: color, fontSize: 13)),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      _PulsingDot(color: color),
+                      const SizedBox(width: 7),
+                      Text(label, style: TextStyle(color: color, fontSize: 13)),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           if (!connected)
@@ -439,6 +455,220 @@ class _MenuButton extends StatelessWidget {
     );
     return result ?? false;
   }
+}
+
+/// Opens the quick TV switcher: a bottom sheet of all saved TVs. Tapping one
+/// switches to it; each row can be renamed. Also offers "add another TV".
+void _openTvSwitcher(BuildContext context, AtvController c) {
+  Haptics.tap();
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _TvSwitcherSheet(c: c),
+  );
+}
+
+class _TvSwitcherSheet extends StatelessWidget {
+  final AtvController c;
+  const _TvSwitcherSheet({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.of(context);
+    final active = c.activeTv;
+    return SafeArea(
+      child: GlassPanel(
+        radius: AppTheme.rLg,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: AppTheme.glassStroke,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6, bottom: 8),
+                child: Text(s.switchTv,
+                    style: const TextStyle(
+                        color: AppTheme.textHi,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ),
+            ...c.pairedTvs.map((tv) {
+              final isActive = active != null &&
+                  tv.host == active.host &&
+                  tv.protocol == active.protocol;
+              return _TvSwitchRow(
+                name: tv.name,
+                subtitle: tv.protocol.label,
+                active: isActive,
+                onTap: () {
+                  Navigator.pop(context);
+                  if (!isActive) c.openSaved(tv);
+                },
+                onRename: () async {
+                  final newName =
+                      await _promptRename(context, tv.name);
+                  if (newName != null) await c.rename(newName, tv);
+                },
+              );
+            }),
+            const SizedBox(height: 6),
+            Pressable(
+              onTap: () {
+                Navigator.pop(context);
+                c.backToDiscovery();
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTheme.rMd),
+                  border: Border.all(color: AppTheme.glassStroke),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.add_rounded,
+                        size: 20, color: AppTheme.accent),
+                    const SizedBox(width: 8),
+                    Text(s.addAnotherTv,
+                        style: const TextStyle(
+                            color: AppTheme.accent,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TvSwitchRow extends StatelessWidget {
+  final String name;
+  final String subtitle;
+  final bool active;
+  final VoidCallback onTap;
+  final VoidCallback onRename;
+  const _TvSwitchRow({
+    required this.name,
+    required this.subtitle,
+    required this.active,
+    required this.onTap,
+    required this.onRename,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Pressable(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.rMd),
+            color: active
+                ? AppTheme.accent.withValues(alpha: 0.14)
+                : AppTheme.surface,
+            border: Border.all(
+              color: active ? AppTheme.accent : AppTheme.glassStroke,
+              width: active ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(active ? Icons.tv_rounded : Icons.tv_outlined,
+                  color: active ? AppTheme.accent : AppTheme.textMid),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: AppTheme.textHi,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: AppTheme.textMid, fontSize: 12)),
+                  ],
+                ),
+              ),
+              if (active)
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(Icons.check_circle_rounded,
+                      size: 18, color: AppTheme.accent),
+                ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined,
+                    size: 18, color: AppTheme.textMid),
+                onPressed: onRename,
+                tooltip: S.of(context).rename,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Prompts for a new TV name; returns the trimmed value or null if cancelled.
+Future<String?> _promptRename(BuildContext context, String current) {
+  final s = S.of(context);
+  final controller = TextEditingController(text: current);
+  return showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppTheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.rMd),
+      ),
+      title: Text(s.rename, style: const TextStyle(color: AppTheme.textHi)),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        style: const TextStyle(color: AppTheme.textHi),
+        maxLength: 40,
+        decoration: InputDecoration(
+          hintText: s.tvNameHint,
+          hintStyle: const TextStyle(color: AppTheme.textLo),
+          counterText: '',
+        ),
+        onSubmitted: (v) => Navigator.pop(ctx, v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          style: TextButton.styleFrom(foregroundColor: AppTheme.textMid),
+          child: Text(s.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, controller.text),
+          style: TextButton.styleFrom(foregroundColor: AppTheme.accent),
+          child: Text(s.save),
+        ),
+      ],
+    ),
+  );
 }
 
 class _PulsingDot extends StatefulWidget {

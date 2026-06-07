@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:atv_remote/atv/key_codes.dart';
 import 'package:atv_remote/atv/roku_backend.dart';
 import 'package:atv_remote/atv/samsung_backend.dart';
@@ -38,6 +40,31 @@ void main() {
 
     test('maps digits to KEY_0..KEY_9', () {
       expect(SamsungBackend.samsungKeyFor(KeyCode.digit(3)), 'KEY_3');
+    });
+  });
+
+  group('Samsung app launch + text', () {
+    test('launchAppMessage emits ed.apps.launch with the app id', () {
+      final m = SamsungBackend.launchAppMessage('11101200001');
+      expect(m['method'], 'ms.channel.emit');
+      final params = m['params'] as Map;
+      expect(params['event'], 'ed.apps.launch');
+      final data = params['data'] as Map;
+      expect(data['appId'], '11101200001');
+      expect(data['action_type'], 'NATIVE_LAUNCH');
+    });
+
+    test('launchAppMessage uses DEEP_LINK for URLs', () {
+      final m = SamsungBackend.launchAppMessage('https://x.example/watch');
+      final data = (m['params'] as Map)['data'] as Map;
+      expect(data['action_type'], 'DEEP_LINK');
+    });
+
+    test('inputTextMessage base64-encodes the text', () {
+      final m = SamsungBackend.inputTextMessage('Hello');
+      final params = m['params'] as Map;
+      expect(params['TypeOfRemote'], 'SendInputString');
+      expect(params['Cmd'], base64.encode(utf8.encode('Hello')));
     });
   });
 }

@@ -188,9 +188,16 @@ class RokuBackend implements RemoteBackend {
 
   @override
   void sendText(String text) {
-    // Roku types via per-character Lit_ keypresses (URL-encoded).
+    // Roku types via per-character Lit_ keypresses (URL-encoded). ECP has no
+    // batch endpoint, so we send them sequentially — awaiting each POST before
+    // the next — to guarantee in-order delivery (a fire-and-forget loop races
+    // and can scramble the typed string).
+    _typeSequentially(text);
+  }
+
+  Future<void> _typeSequentially(String text) async {
     for (final ch in text.split('')) {
-      _keypress('Lit_${Uri.encodeComponent(ch)}');
+      await _keypress('Lit_${Uri.encodeComponent(ch)}');
     }
   }
 
