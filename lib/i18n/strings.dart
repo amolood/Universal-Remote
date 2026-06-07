@@ -94,6 +94,32 @@ class S {
   String get noDevicesFound => _t('no_devices_found');
   String get rescan => _t('rescan');
   String get enterManually => _t('enter_manually');
+  String get delete => _t('delete');
+  String get deviceType => _t('device_type');
+  String get fan => _t('fan');
+  String get television => _t('television');
+  String get light => _t('light');
+  String get genericDevice => _t('generic_device');
+  String get speed => _t('speed');
+  String get oscillate => _t('oscillate');
+  String get brightness => _t('brightness');
+  String get device => _t('device');
+  String get radio => _t('radio');
+  String get dvd => _t('dvd');
+  String get setTopBox => _t('set_top_box');
+  String get projector => _t('projector');
+  String get soundbar => _t('soundbar');
+  String get heater => _t('heater');
+  String get level => _t('level');
+  String get preset => _t('preset');
+  String get tuning => _t('tuning');
+  String get bass => _t('bass');
+  String get sourceInput => _t('source_input');
+  String get focus => _t('focus');
+  String get eject => _t('eject');
+  String get searchBrand => _t('search_brand');
+  String get noBrandsForType => _t('no_brands_for_type');
+  String get smartOnlyBrand => _t('smart_only_brand');
 
   // --- Remote ---
   String get connected => _t('connected');
@@ -240,6 +266,33 @@ const Map<String, String> _en = {
   'no_devices_found': 'No devices found on the network. Enter the address manually below.',
   'rescan': 'Scan again',
   'enter_manually': 'Enter address manually',
+  'delete': 'Delete',
+  'device_type': 'Device type',
+  'fan': 'Fan',
+  'television': 'TV',
+  'light': 'Light',
+  'generic_device': 'Other',
+  'speed': 'Speed',
+  'oscillate': 'Oscillate',
+  'brightness': 'Brightness',
+  'device': 'Device',
+  'radio': 'Radio',
+  'dvd': 'DVD / Blu-ray',
+  'set_top_box': 'Set-top box',
+  'projector': 'Projector',
+  'soundbar': 'Soundbar',
+  'heater': 'Heater',
+  'level': 'Level',
+  'preset': 'Preset',
+  'tuning': 'Tuning',
+  'bass': 'Bass',
+  'source_input': 'Source',
+  'focus': 'Focus',
+  'eject': 'Eject',
+  'search_brand': 'Search brand…',
+  'no_brands_for_type': 'No brands listed for this device type yet.',
+  'smart_only_brand':
+      'This brand is controlled over Wi-Fi (no IR remote) — pick Smart (Wi-Fi).',
   'connected': 'Connected',
   'connecting': 'Connecting…',
   'disconnected': 'Disconnected',
@@ -372,6 +425,33 @@ const Map<String, String> _ar = {
   'no_devices_found': 'لم يُعثر على أجهزة في الشبكة. أدخل العنوان يدويًا بالأسفل.',
   'rescan': 'إعادة البحث',
   'enter_manually': 'إدخال العنوان يدويًا',
+  'delete': 'حذف',
+  'device_type': 'نوع الجهاز',
+  'fan': 'مروحة',
+  'television': 'تلفزيون',
+  'light': 'إضاءة',
+  'generic_device': 'أخرى',
+  'speed': 'السرعة',
+  'oscillate': 'التأرجح',
+  'brightness': 'السطوع',
+  'device': 'جهاز',
+  'radio': 'راديو',
+  'dvd': 'DVD / بلوراي',
+  'set_top_box': 'جهاز استقبال',
+  'projector': 'بروجكتر',
+  'soundbar': 'مكبر صوت',
+  'heater': 'مدفأة',
+  'level': 'المستوى',
+  'preset': 'محطة محفوظة',
+  'tuning': 'الضبط',
+  'bass': 'الجهير',
+  'source_input': 'المصدر',
+  'focus': 'التركيز',
+  'eject': 'إخراج',
+  'search_brand': 'ابحث عن علامة…',
+  'no_brands_for_type': 'لا توجد علامات تجارية لهذا النوع بعد.',
+  'smart_only_brand':
+      'يتم التحكم بهذه العلامة عبر الواي فاي (بدون ريموت أشعة) — اختر «ذكي (واي فاي)».',
   'connected': 'متصل',
   'connecting': 'جارٍ الاتصال…',
   'disconnected': 'غير متصل',

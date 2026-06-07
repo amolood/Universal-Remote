@@ -1,7 +1,39 @@
 import 'dart:convert';
 
 /// What kind of device this is. Drives which control panel the UI shows.
-enum ApplianceKind { airConditioner, fan, tv, light, generic }
+enum ApplianceKind {
+  airConditioner,
+  fan,
+  tv,
+  light,
+  radio,
+  dvd,
+  setTopBox,
+  projector,
+  soundbar,
+  heater,
+  generic,
+}
+
+extension ApplianceKindControl on ApplianceKind {
+  /// True for kinds the user drives with momentary key presses (no persisted
+  /// state model) — they route through `sendDeviceKey`.
+  bool get isKeyBased => switch (this) {
+        ApplianceKind.airConditioner ||
+        ApplianceKind.fan ||
+        ApplianceKind.light ||
+        ApplianceKind.heater =>
+          false,
+        ApplianceKind.tv ||
+        ApplianceKind.radio ||
+        ApplianceKind.dvd ||
+        ApplianceKind.setTopBox ||
+        ApplianceKind.projector ||
+        ApplianceKind.soundbar ||
+        ApplianceKind.generic =>
+          true,
+      };
+}
 
 extension ApplianceKindInfo on ApplianceKind {
   String get id => name;
@@ -54,6 +86,169 @@ extension AcFanInfo on AcFan {
   String get id => name;
   static AcFan fromId(String id) =>
       AcFan.values.firstWhere((f) => f.name == id, orElse: () => AcFan.auto);
+}
+
+/// The full desired state of a standing/ceiling fan. Like an AC, an IR fan is
+/// stateful in spirit but its remote is key-based; we keep a small model so the
+/// panel reopens where the user left it and the Wi-Fi command is complete.
+class FanState {
+  final bool power;
+  final int speed; // 1..maxSpeed
+  final bool oscillate;
+
+  const FanState({
+    this.power = false,
+    this.speed = 1,
+    this.oscillate = false,
+  });
+
+  static const int minSpeed = 1;
+  static const int maxSpeed = 3;
+
+  FanState copyWith({bool? power, int? speed, bool? oscillate}) => FanState(
+        power: power ?? this.power,
+        speed: (speed ?? this.speed).clamp(minSpeed, maxSpeed),
+        oscillate: oscillate ?? this.oscillate,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'power': power, 'speed': speed, 'oscillate': oscillate};
+
+  factory FanState.fromJson(Map<String, dynamic> j) => FanState(
+        power: j['power'] as bool? ?? false,
+        speed: (j['speed'] as int?) ?? 1,
+        oscillate: j['oscillate'] as bool? ?? false,
+      );
+}
+
+/// The desired state of a dimmable light.
+class LightState {
+  final bool power;
+  final int brightness; // 0..100 (%)
+
+  const LightState({this.power = false, this.brightness = 100});
+
+  LightState copyWith({bool? power, int? brightness}) => LightState(
+        power: power ?? this.power,
+        brightness: (brightness ?? this.brightness).clamp(0, 100),
+      );
+
+  Map<String, dynamic> toJson() => {'power': power, 'brightness': brightness};
+
+  factory LightState.fromJson(Map<String, dynamic> j) => LightState(
+        power: j['power'] as bool? ?? false,
+        brightness: (j['brightness'] as int?) ?? 100,
+      );
+}
+
+/// The desired state of a space heater: power, a heat level, and oscillation.
+class HeaterState {
+  final bool power;
+  final int level; // 1..maxLevel
+  final bool oscillate;
+
+  const HeaterState({
+    this.power = false,
+    this.level = 1,
+    this.oscillate = false,
+  });
+
+  static const int minLevel = 1;
+  static const int maxLevel = 3;
+
+  HeaterState copyWith({bool? power, int? level, bool? oscillate}) =>
+      HeaterState(
+        power: power ?? this.power,
+        level: (level ?? this.level).clamp(minLevel, maxLevel),
+        oscillate: oscillate ?? this.oscillate,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'power': power, 'level': level, 'oscillate': oscillate};
+
+  factory HeaterState.fromJson(Map<String, dynamic> j) => HeaterState(
+        power: j['power'] as bool? ?? false,
+        level: (j['level'] as int?) ?? 1,
+        oscillate: j['oscillate'] as bool? ?? false,
+      );
+}
+
+/// A single momentary key for a key-based remote (TV, radio, DVD, etc.).
+/// IR encoders turn one of these into a burst; Wi-Fi devices receive its [id].
+enum DeviceKey {
+  power,
+  volumeUp,
+  volumeDown,
+  mute,
+  channelUp,
+  channelDown,
+  input,
+  menu,
+  home,
+  back,
+  up,
+  down,
+  left,
+  right,
+  ok,
+  // Fan / light momentary keys (used when a model field isn't a clean fit).
+  speedUp,
+  speedDown,
+  oscillate,
+  brightnessUp,
+  brightnessDown,
+  // Numeric keypad (set-top boxes, DVD menus, radio presets, direct channels).
+  digit0,
+  digit1,
+  digit2,
+  digit3,
+  digit4,
+  digit5,
+  digit6,
+  digit7,
+  digit8,
+  digit9,
+  // Media transport (DVD / Blu-ray / soundbar).
+  play,
+  pause,
+  playPause,
+  stop,
+  rewind,
+  fastForward,
+  previous,
+  next,
+  eject,
+  record,
+  // Audio / tuner (radio, hi-fi, soundbar).
+  presetUp,
+  presetDown,
+  tuneUp,
+  tuneDown,
+  bassUp,
+  bassDown,
+  // Heater / projector extras.
+  tempUp,
+  tempDown,
+  focusNear,
+  focusFar,
+}
+
+extension DeviceKeyInfo on DeviceKey {
+  String get id => name;
+
+  /// The DeviceKey for digit [n] (0..9).
+  static DeviceKey digit(int n) => switch (n) {
+        0 => DeviceKey.digit0,
+        1 => DeviceKey.digit1,
+        2 => DeviceKey.digit2,
+        3 => DeviceKey.digit3,
+        4 => DeviceKey.digit4,
+        5 => DeviceKey.digit5,
+        6 => DeviceKey.digit6,
+        7 => DeviceKey.digit7,
+        8 => DeviceKey.digit8,
+        _ => DeviceKey.digit9,
+      };
 }
 
 /// The full desired state of an air conditioner. IR ACs are stateful: every
@@ -129,6 +324,15 @@ class Appliance {
   /// where the user left it. Empty/default for non-AC kinds.
   final AcState acState;
 
+  /// Last known fan state (for [ApplianceKind.fan]). Default for other kinds.
+  final FanState fanState;
+
+  /// Last known light state (for [ApplianceKind.light]). Default otherwise.
+  final LightState lightState;
+
+  /// Last known heater state (for [ApplianceKind.heater]). Default otherwise.
+  final HeaterState heaterState;
+
   final int lastUsed;
 
   /// Secret credential for a Wi-Fi hub/device (token or local key). Empty for
@@ -144,6 +348,9 @@ class Appliance {
     this.host = '',
     this.port = 0,
     this.acState = const AcState(),
+    this.fanState = const FanState(),
+    this.lightState = const LightState(),
+    this.heaterState = const HeaterState(),
     this.lastUsed = 0,
     this.secret = '',
   });
@@ -156,6 +363,9 @@ class Appliance {
     String? host,
     int? port,
     AcState? acState,
+    FanState? fanState,
+    LightState? lightState,
+    HeaterState? heaterState,
     int? lastUsed,
     String? secret,
   }) =>
@@ -168,6 +378,9 @@ class Appliance {
         host: host ?? this.host,
         port: port ?? this.port,
         acState: acState ?? this.acState,
+        fanState: fanState ?? this.fanState,
+        lightState: lightState ?? this.lightState,
+        heaterState: heaterState ?? this.heaterState,
         lastUsed: lastUsed ?? this.lastUsed,
         secret: secret ?? this.secret,
       );
@@ -175,6 +388,23 @@ class Appliance {
   Appliance withSecret(String s) => copyWith(secret: s);
 
   bool get needsSecret => transport != ApplianceTransport.builtinIr;
+
+  /// Whether this appliance is currently on, across kinds. Key-based kinds
+  /// (tv, radio, dvd, etc.) have no persisted power state, so they report false.
+  bool get isOn => switch (kind) {
+        ApplianceKind.airConditioner => acState.power,
+        ApplianceKind.fan => fanState.power,
+        ApplianceKind.light => lightState.power,
+        ApplianceKind.heater => heaterState.power,
+        ApplianceKind.tv ||
+        ApplianceKind.radio ||
+        ApplianceKind.dvd ||
+        ApplianceKind.setTopBox ||
+        ApplianceKind.projector ||
+        ApplianceKind.soundbar ||
+        ApplianceKind.generic =>
+          false,
+      };
 
   /// Non-sensitive metadata only (no secret) — for SharedPreferences.
   Map<String, dynamic> toMetadataJson() => {
@@ -186,6 +416,9 @@ class Appliance {
         'host': host,
         'port': port,
         'acState': acState.toJson(),
+        'fanState': fanState.toJson(),
+        'lightState': lightState.toJson(),
+        'heaterState': heaterState.toJson(),
         'lastUsed': lastUsed,
       };
 
@@ -201,6 +434,15 @@ class Appliance {
         acState: j['acState'] is Map<String, dynamic>
             ? AcState.fromJson(j['acState'] as Map<String, dynamic>)
             : const AcState(),
+        fanState: j['fanState'] is Map<String, dynamic>
+            ? FanState.fromJson(j['fanState'] as Map<String, dynamic>)
+            : const FanState(),
+        lightState: j['lightState'] is Map<String, dynamic>
+            ? LightState.fromJson(j['lightState'] as Map<String, dynamic>)
+            : const LightState(),
+        heaterState: j['heaterState'] is Map<String, dynamic>
+            ? HeaterState.fromJson(j['heaterState'] as Map<String, dynamic>)
+            : const HeaterState(),
         lastUsed: (j['lastUsed'] as int?) ?? 0,
       );
 

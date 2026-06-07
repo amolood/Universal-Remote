@@ -59,7 +59,7 @@ class ApplianceDiscovery {
       final packet = List<int>.filled(0x30, 0);
       packet[0x26] = 6;
       final completer = Completer<void>();
-      socket.listen((event) {
+      final sub = socket.listen((event) {
         if (event != RawSocketEvent.read) return;
         final dg = socket!.receive();
         if (dg == null) return;
@@ -80,6 +80,7 @@ class ApplianceDiscovery {
         if (!completer.isCompleted) completer.complete();
       });
       await completer.future;
+      await sub.cancel();
     } catch (e) {
       atvLog('appliance discover broadlink', e);
     } finally {
@@ -97,7 +98,7 @@ class ApplianceDiscovery {
       socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 6666);
       socket.broadcastEnabled = true;
       final completer = Completer<void>();
-      socket.listen((event) {
+      final sub = socket.listen((event) {
         if (event != RawSocketEvent.read) return;
         final dg = socket!.receive();
         if (dg == null) return;
@@ -117,6 +118,7 @@ class ApplianceDiscovery {
         if (!completer.isCompleted) completer.complete();
       });
       await completer.future;
+      await sub.cancel();
     } catch (e) {
       // Port 6666 may be busy; that's fine — just no Tuya results.
       atvLog('appliance discover tuya', e);

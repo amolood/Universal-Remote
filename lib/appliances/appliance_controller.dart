@@ -6,6 +6,8 @@ import '../atv/secret_store.dart';
 import 'ac_ir_encoder.dart';
 import 'appliance.dart';
 import 'appliance_transport.dart';
+import 'brand_catalog.dart';
+import 'device_ir_encoder.dart';
 
 /// Owns the saved appliances and drives control actions across all three
 /// transports (built-in IR, Wi-Fi IR hub, native Wi-Fi). Exposed to the UI via
@@ -99,6 +101,22 @@ class ApplianceController extends ChangeNotifier {
 
   // ---------------- Control ----------------
 
+  /// Resolves the AC IR encoder for [a]. The appliance stores a brand id from
+  /// the catalog (e.g. 'lg'); the catalog maps brand+kind to the generic
+  /// encoder. Falls back to treating `brand` as a direct encoder id so legacy
+  /// appliances saved before the catalog still resolve.
+  AcIrEncoder? _acEncoderFor(Appliance a) {
+    final encId = BrandCatalog.irEncoderId(a.brand, a.kind);
+    return AcIrProtocols.byId(encId ?? a.brand) ?? AcIrProtocols.byId(a.brand);
+  }
+
+  /// Resolves the key-based device IR encoder for [a] (see [_acEncoderFor]).
+  DeviceIrEncoder? _deviceEncoderFor(Appliance a) {
+    final encId = BrandCatalog.irEncoderId(a.brand, a.kind);
+    return DeviceIrProtocols.byId(encId ?? a.brand) ??
+        DeviceIrProtocols.byId(a.brand);
+  }
+
   /// Applies an AC state to [a]: encodes it for the brand and sends over the
   /// appliance's transport. Persists the new state so the panel reopens there.
   /// Returns true if the command was delivered.
@@ -122,12 +140,192 @@ class ApplianceController extends ChangeNotifier {
         });
       }
       // IR transports (built-in emitter or Wi-Fi IR hub): encode + transmit.
-      final enc = AcIrProtocols.byId(updated.brand);
+      final enc = _acEncoderFor(updated);
       if (enc == null) {
         atvLog('appliance applyAc', 'no encoder for brand ${updated.brand}');
         return false;
       }
       return await link.sendIr(enc.encode(state), enc.carrierHz);
+    } finally {
+      link.dispose();
+    }
+  }
+
+  /// Sends a single momentary [key] to a key-based device (TV, or a fan/light
+  /// button). Over IR it transmits the brand's NEC code; over Wi-Fi it sends a
+  /// `{type: 'key', key: ...}` command. Returns true if delivered. Marks the
+  /// appliance as recently used but does not change persisted state.
+  Future<bool> sendDeviceKey(Appliance a, DeviceKey key) async {
+    _upsert(a.copyWith(lastUsed: _now()));
+    await _persist();
+    notifyListeners();
+
+    final link = ApplianceLink.forAppliance(a);
+    try {
+      if (a.transport == ApplianceTransport.wifi) {
+        return await link.sendWifi({'type': 'key', 'key': key.id});
+      }
+      final enc = _deviceEncoderFor(a);
+      final pattern = enc?.encode(key);
+      if (pattern == null) {
+        atvLog('appliance sendDeviceKey',
+            'no IR code for ${a.brand}/${key.id}');
+        return false;
+      }
+      return await link.sendIr(pattern, enc!.carrierHz);
+    } finally {
+      link.dispose();
+    }
+  }
+
+  /// Applies a fan [state] to [a]. Wi-Fi fans take the whole state in one
+  /// command. IR fans are key-based, so we diff against the last state and emit
+  /// the matching presses (power toggle, speed steps, oscillate toggle).
+  /// Returns true if every required command was delivered.
+  Future<bool> applyFan(Appliance a, FanState state) async {
+    final prev = a.fanState;
+    final updated = a.copyWith(fanState: state, lastUsed: _now());
+    _upsert(updated);
+    await _persist();
+    notifyListeners();
+
+    final link = ApplianceLink.forAppliance(updated);
+    try {
+      if (updated.transport == ApplianceTransport.wifi) {
+        return await link.sendWifi({
+          'type': 'fan',
+          'power': state.power,
+          'speed': state.speed,
+          'oscillate': state.oscillate,
+        });
+      }
+      final enc = _deviceEncoderFor(updated);
+      if (enc == null) {
+        atvLog('appliance applyFan', 'no encoder for ${updated.brand}');
+        return false;
+      }
+      var ok = true;
+      Future<void> press(DeviceKey k) async {
+        final p = enc.encode(k);
+        if (p != null) ok = await link.sendIr(p, enc.carrierHz) && ok;
+      }
+
+      if (prev.power != state.power) await press(DeviceKey.power);
+      if (state.power) {
+        // Step speed from prev to target with up/down presses.
+        var diff = state.speed - prev.speed;
+        while (diff > 0) {
+          await press(DeviceKey.speedUp);
+          diff--;
+        }
+        while (diff < 0) {
+          await press(DeviceKey.speedDown);
+          diff++;
+        }
+        if (prev.oscillate != state.oscillate) {
+          await press(DeviceKey.oscillate);
+        }
+      }
+      return ok;
+    } finally {
+      link.dispose();
+    }
+  }
+
+  /// Applies a light [state] to [a]. Wi-Fi lights take the whole state; IR
+  /// lights are key-based — power toggle plus brightness steps (in ~10% units).
+  Future<bool> applyLight(Appliance a, LightState state) async {
+    final prev = a.lightState;
+    final updated = a.copyWith(lightState: state, lastUsed: _now());
+    _upsert(updated);
+    await _persist();
+    notifyListeners();
+
+    final link = ApplianceLink.forAppliance(updated);
+    try {
+      if (updated.transport == ApplianceTransport.wifi) {
+        return await link.sendWifi({
+          'type': 'light',
+          'power': state.power,
+          'brightness': state.brightness,
+        });
+      }
+      final enc = _deviceEncoderFor(updated);
+      if (enc == null) {
+        atvLog('appliance applyLight', 'no encoder for ${updated.brand}');
+        return false;
+      }
+      var ok = true;
+      Future<void> press(DeviceKey k) async {
+        final p = enc.encode(k);
+        if (p != null) ok = await link.sendIr(p, enc.carrierHz) && ok;
+      }
+
+      if (prev.power != state.power) await press(DeviceKey.power);
+      if (state.power) {
+        // Each brightness press is ~10%; emit the delta in those steps.
+        var steps = ((state.brightness - prev.brightness) / 10).round();
+        while (steps > 0) {
+          await press(DeviceKey.brightnessUp);
+          steps--;
+        }
+        while (steps < 0) {
+          await press(DeviceKey.brightnessDown);
+          steps++;
+        }
+      }
+      return ok;
+    } finally {
+      link.dispose();
+    }
+  }
+
+  /// Applies a heater [state] to [a]. Wi-Fi heaters take the whole state; IR
+  /// heaters are key-based — power toggle, heat-level steps, oscillate toggle.
+  Future<bool> applyHeater(Appliance a, HeaterState state) async {
+    final prev = a.heaterState;
+    final updated = a.copyWith(heaterState: state, lastUsed: _now());
+    _upsert(updated);
+    await _persist();
+    notifyListeners();
+
+    final link = ApplianceLink.forAppliance(updated);
+    try {
+      if (updated.transport == ApplianceTransport.wifi) {
+        return await link.sendWifi({
+          'type': 'heater',
+          'power': state.power,
+          'level': state.level,
+          'oscillate': state.oscillate,
+        });
+      }
+      final enc = _deviceEncoderFor(updated);
+      if (enc == null) {
+        atvLog('appliance applyHeater', 'no encoder for ${updated.brand}');
+        return false;
+      }
+      var ok = true;
+      Future<void> press(DeviceKey k) async {
+        final p = enc.encode(k);
+        if (p != null) ok = await link.sendIr(p, enc.carrierHz) && ok;
+      }
+
+      if (prev.power != state.power) await press(DeviceKey.power);
+      if (state.power) {
+        var diff = state.level - prev.level;
+        while (diff > 0) {
+          await press(DeviceKey.tempUp);
+          diff--;
+        }
+        while (diff < 0) {
+          await press(DeviceKey.tempDown);
+          diff++;
+        }
+        if (prev.oscillate != state.oscillate) {
+          await press(DeviceKey.oscillate);
+        }
+      }
+      return ok;
     } finally {
       link.dispose();
     }

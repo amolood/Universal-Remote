@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -82,7 +83,7 @@ class IrHubTransport extends ApplianceLink {
       final req = await _http.postUrl(uri).timeout(const Duration(seconds: 4));
       req.headers.contentType = ContentType.json;
       if (token.isNotEmpty) req.headers.add('Authorization', 'Bearer $token');
-      req.write('{"carrier":$carrierHz,"pattern":${pattern.toString()}}');
+      req.write(jsonEncode({'carrier': carrierHz, 'pattern': pattern}));
       final resp = await req.close().timeout(const Duration(seconds: 4));
       await resp.drain<void>();
       return resp.statusCode >= 200 && resp.statusCode < 300;
@@ -121,7 +122,7 @@ class WifiApplianceTransport extends ApplianceLink {
       final req = await _http.postUrl(uri).timeout(const Duration(seconds: 4));
       req.headers.contentType = ContentType.json;
       if (token.isNotEmpty) req.headers.add('Authorization', 'Bearer $token');
-      req.write(_encode(command));
+      req.write(jsonEncode(command));
       final resp = await req.close().timeout(const Duration(seconds: 4));
       await resp.drain<void>();
       return resp.statusCode >= 200 && resp.statusCode < 300;
@@ -129,15 +130,6 @@ class WifiApplianceTransport extends ApplianceLink {
       atvLog('appliance wifi send', e);
       return false;
     }
-  }
-
-  String _encode(Map<String, dynamic> m) {
-    final parts = m.entries.map((e) {
-      final v = e.value;
-      final val = v is String ? '"$v"' : '$v';
-      return '"${e.key}":$val';
-    });
-    return '{${parts.join(',')}}';
   }
 
   @override
