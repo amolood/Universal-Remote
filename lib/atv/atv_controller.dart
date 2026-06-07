@@ -757,6 +757,9 @@ class AtvController extends ChangeNotifier {
     if (voiceActive) await stopVoice();
     _accX = 0;
     _accY = 0;
+    // Start the on-screen cursor from the middle (real-pointer backends).
+    final b = _backend;
+    if (b is CvteBackend) b.recenterCursor();
     airMouseActive = true;
     notifyListeners();
     _airMouse.start(_moveCursor);

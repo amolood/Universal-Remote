@@ -1333,7 +1333,9 @@ class _ClassicLayout extends StatelessWidget {
               tooltip: s.guide,
             ),
             GlassIconButton(
-              icon: Icons.settings_input_hdmi_rounded,
+              // Source/Input: arrow pointing into a screen (matches the
+              // standard "Source" remote key), not the HDMI-plug glyph.
+              icon: Icons.input_rounded,
               size: 52,
               onTap: () => c.sendKey(KeyCode.input),
               tooltip: s.input,

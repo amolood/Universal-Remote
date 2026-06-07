@@ -52,8 +52,14 @@ class CvteMessages {
   static Uint8List key(int keyCode) =>
       event(type: CvteEvent.keyEvent, action: '$keyCode');
 
-  static Uint8List mouseMove(double x, double y) =>
-      event(type: CvteEvent.mouseMoveEvent, pointers: [(x, y)]);
+  /// Mouse move: absolute pointer position on the board surface. The Bytello
+  /// protocol carries the MotionEvent action as the `action` string (2 = MOVE,
+  /// 0 = DOWN, 1 = UP) alongside the absolute pixel coordinates.
+  static Uint8List mouseMove(double x, double y, {int action = 2}) => event(
+        type: CvteEvent.mouseMoveEvent,
+        action: '$action',
+        pointers: [(x, y)],
+      );
 
   static Uint8List mouseClick() => event(type: CvteEvent.mouseClickEvent);
 
@@ -134,9 +140,32 @@ class CvteBackend implements RemoteBackend {
   @override
   void sendKey(int keyCode) => _send(CvteMessages.key(keyCode));
 
+  // Virtual board surface the cursor lives on. The board scales these absolute
+  // coordinates to its own resolution (Bytello sends absolute pixels, not
+  // deltas), so we keep an absolute position here and clamp it to the surface.
+  static const double _surfaceW = 1920;
+  static const double _surfaceH = 1080;
+  // Movement gain so a small input delta covers a sensible span of the large
+  // board surface (matches the feel of the reference air-mouse gain).
+  static const double _moveGain = 2.5;
+  double _curX = _surfaceW / 2;
+  double _curY = _surfaceH / 2;
+
   @override
-  void moveCursor(double dx, double dy) =>
-      _send(CvteMessages.mouseMove(dx, dy));
+  void moveCursor(double dx, double dy) {
+    // Incoming dx/dy are movement deltas (from the touchpad drag or the gyro
+    // air mouse). Integrate them into an absolute position and clamp.
+    _curX = (_curX + dx * _moveGain).clamp(0.0, _surfaceW);
+    _curY = (_curY + dy * _moveGain).clamp(0.0, _surfaceH);
+    _send(CvteMessages.mouseMove(_curX, _curY));
+  }
+
+  /// Recenters the cursor — useful when (re)starting the air mouse so motion
+  /// begins from the middle of the screen.
+  void recenterCursor() {
+    _curX = _surfaceW / 2;
+    _curY = _surfaceH / 2;
+  }
 
   @override
   void click() => _send(CvteMessages.mouseClick());
