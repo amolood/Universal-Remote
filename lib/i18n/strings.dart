@@ -127,6 +127,7 @@ class S {
   String get playPause => _t('play_pause');
   String get touchpad => _t('touchpad');
   String get touchpadHint => _t('touchpad_hint');
+  String get info => _t('info');
   String get approvalTitle => _t('approval_title');
   String get approvalBody => _t('approval_body');
   String get dpad => _t('dpad');
@@ -230,6 +231,7 @@ const Map<String, String> _en = {
   'play_pause': 'Play / Pause',
   'touchpad': 'Touchpad',
   'touchpad_hint': 'Swipe to move, tap to select',
+  'info': 'Info',
   'approval_title': 'Check your TV',
   'approval_body':
       'Accept the connection prompt shown on your TV screen to finish pairing.',
@@ -325,6 +327,7 @@ const Map<String, String> _ar = {
   'play_pause': 'تشغيل / إيقاف',
   'touchpad': 'لوحة لمس',
   'touchpad_hint': 'اسحب للتحريك، انقر للاختيار',
+  'info': 'معلومات',
   'approval_title': 'تحقق من تلفزيونك',
   'approval_body':
       'اقبل طلب الاتصال الظاهر على شاشة التلفزيون لإكمال الاقتران.',

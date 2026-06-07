@@ -223,6 +223,8 @@ class _RemoteScreenState extends State<RemoteScreen>
               onTap: () => c.sendKey(KeyCode.power),
               tooltip: S.of(context).power,
             ),
+            // Air mouse (gyroscope) toggle.
+            _AirMouseButton(c: c, size: 58),
           ],
         ),
         const SizedBox(height: 16),
@@ -514,6 +516,8 @@ class _UtilityRow extends StatelessWidget {
           onTap: () => c.sendKey(KeyCode.settings),
           tooltip: S.of(context).settings,
         ),
+        // Air mouse (gyroscope) toggle.
+        _AirMouseButton(c: c, size: 60),
         _MicButton(c: c, size: 60),
       ],
     );
@@ -1341,6 +1345,8 @@ class _ClassicLayout extends StatelessWidget {
               onTap: () => c.sendKey(KeyCode.home),
               tooltip: s.home,
             ),
+            // Air mouse (gyroscope) toggle.
+            _AirMouseButton(c: c, size: 52),
           ],
         ),
         const SizedBox(height: 18),
@@ -1366,16 +1372,18 @@ class _ClassicLayout extends StatelessWidget {
                   onDown: () => c.sendKey(KeyCode.volumeDown),
                 ),
               ),
-              // Center column (Unimote): Menu · Mute · Source (Input).
+              // Center column: Numbers · Mute · Keyboard — distinct from the
+              // top row (Input/Home) and the corner keys (Menu/Info), so no
+              // function is duplicated.
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     GlassIconButton(
-                      icon: Icons.menu_rounded,
+                      icon: Icons.dialpad_rounded,
                       size: 52,
-                      onTap: () => c.sendKey(KeyCode.menu),
-                      tooltip: s.menu,
+                      onTap: onNumpad,
+                      tooltip: s.numbers,
                     ),
                     GlassIconButton(
                       icon: Icons.volume_off_rounded,
@@ -1384,10 +1392,10 @@ class _ClassicLayout extends StatelessWidget {
                       tooltip: s.mute,
                     ),
                     GlassIconButton(
-                      icon: Icons.input_rounded,
+                      icon: Icons.keyboard_rounded,
                       size: 52,
-                      onTap: () => c.sendKey(KeyCode.input),
-                      tooltip: s.input,
+                      onTap: onKeyboard,
+                      tooltip: s.keyboard,
                     ),
                   ],
                 ),
@@ -1437,7 +1445,7 @@ class _ClassicDpad extends StatelessWidget {
             ),
             Align(
               alignment: const Alignment(0.95, -0.95),
-              child: _corner(Icons.info_outline_rounded, 'Info',
+              child: _corner(Icons.info_outline_rounded, s.info,
                   () => c.sendKey(KeyCode.info)),
             ),
             Align(
@@ -1447,8 +1455,8 @@ class _ClassicDpad extends StatelessWidget {
             ),
             Align(
               alignment: const Alignment(0.95, 0.95),
-              child: _corner(Icons.close_rounded, s.exit,
-                  () => c.sendKey(KeyCode.back)),
+              child: _corner(Icons.settings_rounded, s.settings,
+                  () => c.sendKey(KeyCode.settings)),
             ),
             // Outer ring (slightly inset so corner keys sit at the edges)
             Padding(

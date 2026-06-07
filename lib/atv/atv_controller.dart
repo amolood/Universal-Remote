@@ -132,8 +132,9 @@ class AtvController extends ChangeNotifier {
   List<DiscoveredTv> discovered = const [];
   bool scanning = false;
 
-  /// The user's chosen remote layout (persisted).
-  RemoteLayout layout = RemoteLayout.balanced;
+  /// The user's chosen remote layout (persisted). Classic is the default —
+  /// the familiar TV-style remote with a circular D-pad and corner keys.
+  RemoteLayout layout = RemoteLayout.classic;
 
   /// Whether haptic feedback is enabled (persisted).
   bool hapticsEnabled = true;
@@ -191,7 +192,7 @@ class AtvController extends ChangeNotifier {
     }
     layout = RemoteLayout.values.firstWhere(
       (l) => l.name == prefs.getString(_kLayout),
-      orElse: () => RemoteLayout.balanced,
+      orElse: () => RemoteLayout.classic,
     );
     hapticsEnabled = prefs.getBool(_kHaptics) ?? true;
     Haptics.enabled = hapticsEnabled;
