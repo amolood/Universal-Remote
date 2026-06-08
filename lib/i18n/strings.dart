@@ -120,6 +120,10 @@ class S {
   String get focus => _t('focus');
   String get eject => _t('eject');
   String get searchBrand => _t('search_brand');
+  String get stepPickType => _t('step_pick_type');
+  String get stepPickBrand => _t('step_pick_brand');
+  String get stepConnect => _t('step_connect');
+  String get wifiOnly => _t('wifi_only');
   String get noBrandsForType => _t('no_brands_for_type');
   String get smartOnlyBrand => _t('smart_only_brand');
 
@@ -296,6 +300,10 @@ const Map<String, String> _en = {
   'focus': 'Focus',
   'eject': 'Eject',
   'search_brand': 'Search brand…',
+  'step_pick_type': 'What are you adding?',
+  'step_pick_brand': 'Choose the brand',
+  'step_connect': 'How is it connected?',
+  'wifi_only': 'Wi-Fi',
   'no_brands_for_type': 'No brands listed for this device type yet.',
   'smart_only_brand':
       'This brand is controlled over Wi-Fi (no IR remote) — pick Smart (Wi-Fi).',
@@ -460,6 +468,10 @@ const Map<String, String> _ar = {
   'focus': 'التركيز',
   'eject': 'إخراج',
   'search_brand': 'ابحث عن علامة…',
+  'step_pick_type': 'ما الجهاز الذي تضيفه؟',
+  'step_pick_brand': 'اختر العلامة التجارية',
+  'step_connect': 'كيف يتّصل الجهاز؟',
+  'wifi_only': 'واي فاي',
   'no_brands_for_type': 'لا توجد علامات تجارية لهذا النوع بعد.',
   'smart_only_brand':
       'يتم التحكم بهذه العلامة عبر الواي فاي (بدون ريموت أشعة) — اختر «ذكي (واي فاي)».',

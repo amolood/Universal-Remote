@@ -400,6 +400,10 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
   ApplianceTransport _transport = ApplianceTransport.builtinIr;
   String _brand = '';
 
+  /// Wizard step: 0 = device type, 1 = brand, 2 = connection & name.
+  int _step = 0;
+  static const int _lastStep = 2;
+
   /// Catalog brands that make the chosen kind (premium→value, then A–Z),
   /// filtered by the brand search box.
   List<Brand> get _brandsForKind {
@@ -558,79 +562,439 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
     if (mounted) Navigator.of(context).pop();
   }
 
+  // ---- Wizard navigation ----
+
+  /// Whether the user can advance from the current step.
+  bool get _canAdvance {
+    switch (_step) {
+      case 0:
+        return true; // a kind is always selected
+      case 1:
+        return _brand.isNotEmpty;
+      case 2:
+        // Built-in IR needs nothing; network transports need a host.
+        return !_isWifiOrHub || _host.text.trim().isNotEmpty;
+      default:
+        return false;
+    }
+  }
+
+  void _back() {
+    if (_step == 0) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _step--);
+    }
+  }
+
+  void _next() {
+    FocusScope.of(context).unfocus();
+    if (_step < _lastStep) {
+      setState(() => _step++);
+      // Entering the connection step with a network transport already chosen
+      // (e.g. a Wi-Fi-only brand) — kick off discovery right away.
+      if (_step == _lastStep && _isWifiOrHub && !_scanned && !_scanning) {
+        _scan();
+      }
+    } else {
+      _save();
+    }
+  }
+
+  String _stepTitle(S s) => switch (_step) {
+        0 => s.stepPickType,
+        1 => s.stepPickBrand,
+        _ => s.stepConnect,
+      };
+
   @override
   Widget build(BuildContext context) {
     final s = S.of(context);
-    final c = widget.controller;
     return Scaffold(
       backgroundColor: AppTheme.bg0,
+      resizeToAvoidBottomInset: true,
       body: AuroraBackground(
         child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  GlassIconButton(
-                    icon: DirIcons.chevronBack(context),
-                    size: 42,
-                    iconSize: 26,
-                    onTap: () => Navigator.of(context).pop(),
+              _wizardHeader(s),
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  switchInCurve: Curves.easeOutCubic,
+                  transitionBuilder: (child, anim) {
+                    final slide = Tween(
+                      begin: const Offset(0.06, 0),
+                      end: Offset.zero,
+                    ).animate(anim);
+                    return FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(position: slide, child: child),
+                    );
+                  },
+                  child: KeyedSubtree(
+                    key: ValueKey(_step),
+                    child: _stepBody(s),
                   ),
-                  const SizedBox(width: 10),
-                  Text(widget.editing != null ? s.editDetails : s.addAppliance,
-                      style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textHi)),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _label(s.deviceType),
-              const SizedBox(height: 8),
-              _kindPicker(s),
-              const SizedBox(height: 20),
-              _label(s.brand),
-              const SizedBox(height: 8),
-              _brandPicker(s),
-              if (!_brandIrCapable) ...[
-                const SizedBox(height: 8),
-                _info(s.smartOnlyBrand),
-              ],
-              const SizedBox(height: 20),
-              _label(s.connection),
-              const SizedBox(height: 8),
-              _transportPicker(s, c),
-              if (_transport == ApplianceTransport.builtinIr &&
-                  !c.hasBuiltinIr) ...[
-                const SizedBox(height: 8),
-                _warn(s.noIrEmitter),
-              ],
-              const SizedBox(height: 20),
-              if (_isWifiOrHub) ...[
-                ..._networkSection(s),
-                const SizedBox(height: 20),
-              ],
-              _label(s.name),
-              const SizedBox(height: 8),
-              _field(_name, _defaultName(s)),
-              const SizedBox(height: 28),
-              // Rebuild only the button as the host field changes, instead of
-              // setState-ing the whole screen on every keystroke.
-              AnimatedBuilder(
-                animation: _host,
-                builder: (context, _) => GradientButton(
-                  label: s.save,
-                  icon: Icons.check_rounded,
-                  onTap: _isWifiOrHub && _host.text.trim().isEmpty
-                      ? null
-                      : _save,
                 ),
               ),
+              _wizardFooter(s),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  // ---- Wizard chrome ----
+
+  Widget _wizardHeader(S s) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 12, 18, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GlassIconButton(
+                icon: _step == 0
+                    ? DirIcons.chevronBack(context)
+                    : Icons.arrow_back_rounded,
+                size: 42,
+                iconSize: 24,
+                onTap: _back,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.editing != null ? s.editDetails : s.addAppliance,
+                      style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textHi),
+                    ),
+                    Text(_stepTitle(s),
+                        style: const TextStyle(
+                            color: AppTheme.textMid, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Text('${_step + 1}/${_lastStep + 1}',
+                  style: const TextStyle(
+                      color: AppTheme.textLo,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _progressBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _progressBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          for (var i = 0; i <= _lastStep; i++) ...[
+            Expanded(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                height: 4,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  gradient: i <= _step ? AppTheme.accentGradient : null,
+                  color: i <= _step ? null : AppTheme.glassStroke,
+                ),
+              ),
+            ),
+            if (i < _lastStep) const SizedBox(width: 6),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _wizardFooter(S s) {
+    final isLast = _step == _lastStep;
+    // The Next/Save button reacts to the host field on the last step.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+      child: AnimatedBuilder(
+        animation: _host,
+        builder: (context, _) => GradientButton(
+          label: isLast ? s.save : s.next,
+          icon: isLast ? Icons.check_rounded : Icons.arrow_forward_rounded,
+          onTap: _canAdvance ? _next : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _stepBody(S s) {
+    final padding = const EdgeInsets.fromLTRB(18, 8, 18, 16);
+    switch (_step) {
+      case 0:
+        return ListView(
+          padding: padding,
+          children: [_kindGrid(s)],
+        );
+      case 1:
+        return _brandStep(s);
+      default:
+        return ListView(
+          padding: padding,
+          children: [..._connectStep(s)],
+        );
+    }
+  }
+
+  // ============ Step 1 — Device type (card grid) ============
+
+  Widget _kindGrid(S s) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.55,
+      children: [
+        for (final k in ApplianceKind.values)
+          _kindCard(
+            label: kindLabel(s, k),
+            icon: kindIcon(k),
+            selected: _kind == k,
+            onTap: () => _selectKind(k),
+          ),
+      ],
+    );
+  }
+
+  Widget _kindCard({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Pressable(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppTheme.rMd),
+          color: selected
+              ? AppTheme.accent.withValues(alpha: 0.16)
+              : AppTheme.surface,
+          border: Border.all(
+            color: selected ? AppTheme.accent : AppTheme.glassStroke,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected
+                    ? AppTheme.accent.withValues(alpha: 0.22)
+                    : AppTheme.bg1,
+              ),
+              child: Icon(icon,
+                  size: 22,
+                  color: selected ? AppTheme.accent : AppTheme.textMid),
+            ),
+            Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: selected ? AppTheme.textHi : AppTheme.textMid,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============ Step 2 — Brand (searchable list) ============
+
+  Widget _brandStep(S s) {
+    final hasSearch = BrandCatalog.forKind(_kind).length > 8;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hasSearch)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+            child: TextField(
+              controller: _brandSearch,
+              style: const TextStyle(color: AppTheme.textHi),
+              decoration: InputDecoration(
+                prefixIcon:
+                    const Icon(Icons.search_rounded, color: AppTheme.textLo),
+                hintText: s.searchBrand,
+                hintStyle: const TextStyle(color: AppTheme.textLo),
+                isDense: true,
+                filled: true,
+                fillColor: AppTheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.rMd),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+        Expanded(
+          child: AnimatedBuilder(
+            animation: _brandSearch,
+            builder: (context, _) {
+              final brands = _brandsForKind;
+              if (brands.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
+                  child: _info(s.noBrandsForType),
+                );
+              }
+              return ListView.separated(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+                itemCount: brands.length,
+                separatorBuilder: (context, i) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final b = brands[i];
+                  final selected = _brand == b.id;
+                  final irOnly = !BrandCatalog.irCapable(b.id, _kind);
+                  return _brandRow(b.name, selected, irOnly,
+                      () => _selectBrand(b.id));
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _brandRow(
+      String name, bool selected, bool wifiOnly, VoidCallback onTap) {
+    final s = S.of(context);
+    return Pressable(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppTheme.rMd),
+          color: selected
+              ? AppTheme.accent.withValues(alpha: 0.14)
+              : AppTheme.surface,
+          border: Border.all(
+            color: selected ? AppTheme.accent : AppTheme.glassStroke,
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(name,
+                  style: TextStyle(
+                      color: selected ? AppTheme.textHi : AppTheme.textMid,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600)),
+            ),
+            if (wifiOnly)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppTheme.rXl),
+                  color: AppTheme.accent2.withValues(alpha: 0.18),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.wifi_rounded,
+                      size: 12, color: AppTheme.accent2),
+                  const SizedBox(width: 4),
+                  Text(s.wifiOnly,
+                      style: const TextStyle(
+                          color: AppTheme.accent2,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            Icon(
+              selected
+                  ? Icons.check_circle_rounded
+                  : Icons.circle_outlined,
+              size: 20,
+              color: selected ? AppTheme.accent : AppTheme.textLo,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============ Step 3 — Connection & name ============
+
+  List<Widget> _connectStep(S s) {
+    final c = widget.controller;
+    return [
+      _label(s.connection),
+      const SizedBox(height: 8),
+      _transportPicker(s, c),
+      if (_transport == ApplianceTransport.builtinIr && !c.hasBuiltinIr) ...[
+        const SizedBox(height: 8),
+        _warn(s.noIrEmitter),
+      ],
+      const SizedBox(height: 20),
+      if (_isWifiOrHub) ...[
+        ..._networkSection(s),
+        const SizedBox(height: 20),
+      ],
+      _label(s.name),
+      const SizedBox(height: 8),
+      _field(_name, _defaultName(s)),
+      const SizedBox(height: 8),
+      _summaryCard(s),
+    ];
+  }
+
+  /// A compact recap of the chosen type + brand so the last step feels complete.
+  Widget _summaryCard(S s) {
+    final brandName = BrandCatalog.forKind(_kind)
+        .where((b) => b.id == _brand)
+        .map((b) => b.name)
+        .followedBy([_brand])
+        .first;
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.rMd),
+        color: AppTheme.surface,
+        border: Border.all(color: AppTheme.glassStroke),
+      ),
+      child: Row(children: [
+        Icon(kindIcon(_kind), color: AppTheme.accent, size: 22),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text('${kindLabel(s, _kind)}  ·  $brandName',
+              style: const TextStyle(
+                  color: AppTheme.textHi, fontWeight: FontWeight.w600)),
+        ),
+      ]),
     );
   }
 
@@ -682,64 +1046,6 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
               onTap: () => _selectTransport(t),
             ),
           ),
-      ],
-    );
-  }
-
-  Widget _kindPicker(S s) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final k in ApplianceKind.values)
-          _chip(kindLabel(s, k), _kind == k, () => _selectKind(k),
-              icon: kindIcon(k)),
-      ],
-    );
-  }
-
-  Widget _brandPicker(S s) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Search box appears once the kind has a sizable brand list.
-        if (BrandCatalog.forKind(_kind).length > 8) ...[
-          TextField(
-            controller: _brandSearch,
-            style: const TextStyle(color: AppTheme.textHi),
-            decoration: InputDecoration(
-              prefixIcon:
-                  const Icon(Icons.search_rounded, color: AppTheme.textLo),
-              hintText: s.searchBrand,
-              hintStyle: const TextStyle(color: AppTheme.textLo),
-              isDense: true,
-              filled: true,
-              fillColor: AppTheme.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppTheme.rSm),
-                borderSide: BorderSide.none,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-        ],
-        // Only the filtered chip list rebuilds as the query changes — not the
-        // whole add screen.
-        AnimatedBuilder(
-          animation: _brandSearch,
-          builder: (context, _) {
-            final brands = _brandsForKind;
-            if (brands.isEmpty) return _info(s.noBrandsForType);
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final b in brands)
-                  _chip(b.name, _brand == b.id, () => _selectBrand(b.id)),
-              ],
-            );
-          },
-        ),
       ],
     );
   }
@@ -859,38 +1165,6 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
       ),
     );
   }
-
-  Widget _chip(String label, bool selected, VoidCallback onTap,
-          {IconData? icon}) =>
-      Pressable(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.rXl),
-            gradient: selected ? AppTheme.accentGradient : null,
-            color: selected ? null : AppTheme.surface,
-            border: Border.all(
-                color: selected ? Colors.transparent : AppTheme.glassStroke),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon,
-                    size: 16,
-                    color: selected ? Colors.white : AppTheme.textMid),
-                const SizedBox(width: 6),
-              ],
-              Text(label,
-                  style: TextStyle(
-                      color: selected ? Colors.white : AppTheme.textMid,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13)),
-            ],
-          ),
-        ),
-      );
 
   Widget _field(TextEditingController ctrl, String hint) => TextField(
         controller: ctrl,
