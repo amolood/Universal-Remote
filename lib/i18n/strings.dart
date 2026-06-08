@@ -96,6 +96,7 @@ class S {
   String get rescan => _t('rescan');
   String get enterManually => _t('enter_manually');
   String get delete => _t('delete');
+  String get editDetails => _t('edit_details');
   String get deviceType => _t('device_type');
   String get fan => _t('fan');
   String get television => _t('television');
@@ -154,6 +155,8 @@ class S {
   String get obPairBody => _t('ob_pair_body');
   String get obControlTitle => _t('ob_control_title');
   String get obControlBody => _t('ob_control_body');
+  String get obAppliancesTitle => _t('ob_appliances_title');
+  String get obAppliancesBody => _t('ob_appliances_body');
   String get next => _t('next');
   String get getStarted => _t('get_started');
   String get skip => _t('skip');
@@ -269,6 +272,7 @@ const Map<String, String> _en = {
   'rescan': 'Scan again',
   'enter_manually': 'Enter address manually',
   'delete': 'Delete',
+  'edit_details': 'Edit details',
   'device_type': 'Device type',
   'fan': 'Fan',
   'television': 'TV',
@@ -324,6 +328,9 @@ const Map<String, String> _en = {
   'ob_control_title': 'Full control + voice',
   'ob_control_body':
       'D-pad, touchpad, media, keyboard, and voice search — everything you need.',
+  'ob_appliances_title': 'Appliances too',
+  'ob_appliances_body':
+      'Control air conditioners and more — by your phone\'s IR, a Wi-Fi IR hub, or smart Wi-Fi devices.',
   'next': 'Next',
   'get_started': 'Get started',
   'skip': 'Skip',
@@ -429,6 +436,7 @@ const Map<String, String> _ar = {
   'rescan': 'إعادة البحث',
   'enter_manually': 'إدخال العنوان يدويًا',
   'delete': 'حذف',
+  'edit_details': 'تعديل التفاصيل',
   'device_type': 'نوع الجهاز',
   'fan': 'مروحة',
   'television': 'تلفزيون',
@@ -484,6 +492,9 @@ const Map<String, String> _ar = {
   'ob_control_title': 'تحكّم كامل + صوت',
   'ob_control_body':
       'لوحة اتجاهات، لوحة لمس، وسائط، كيبورد، وبحث صوتي — كل ما تحتاجه.',
+  'ob_appliances_title': 'والأجهزة أيضًا',
+  'ob_appliances_body':
+      'تحكّم بالمكيفات وأكثر — عبر أشعة هاتفك، أو موزّع IR بالواي فاي، أو أجهزة واي فاي ذكية.',
   'next': 'التالي',
   'get_started': 'ابدأ',
   'skip': 'تخطّي',

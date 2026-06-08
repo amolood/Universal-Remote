@@ -204,6 +204,21 @@ class _ApplianceCard extends StatelessWidget {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.tune_rounded,
+                      color: AppTheme.textHi),
+                  title: Text(s.editDetails,
+                      style: const TextStyle(color: AppTheme.textHi)),
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => AddApplianceScreen(
+                        controller: context.read<ApplianceController>(),
+                        editing: appliance,
+                      ),
+                    ));
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.delete_outline_rounded,
                       color: AppTheme.danger),
                   title: Text(s.delete,
@@ -361,7 +376,16 @@ Future<String?> _promptApplianceName(BuildContext context, String current) {
 /// host/token, then save. Kept on one screen for simplicity.
 class AddApplianceScreen extends StatefulWidget {
   final ApplianceController controller;
-  const AddApplianceScreen({super.key, required this.controller});
+
+  /// When set, the screen edits this appliance (pre-filled) instead of adding a
+  /// new one — the saved record keeps its id and any persisted state.
+  final Appliance? editing;
+
+  const AddApplianceScreen({
+    super.key,
+    required this.controller,
+    this.editing,
+  });
 
   @override
   State<AddApplianceScreen> createState() => _AddApplianceScreenState();
@@ -437,8 +461,20 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
   @override
   void initState() {
     super.initState();
-    final brands = BrandCatalog.forKind(_kind);
-    _brand = brands.isNotEmpty ? brands.first.id : '';
+    final edit = widget.editing;
+    if (edit != null) {
+      // Pre-fill every field from the appliance being edited.
+      _kind = edit.kind;
+      _transport = edit.transport;
+      _brand = edit.brand;
+      _name.text = edit.name;
+      _host.text = edit.host;
+      _token.text = edit.secret;
+      _manual = edit.host.isNotEmpty; // show the form already filled
+    } else {
+      final brands = BrandCatalog.forKind(_kind);
+      _brand = brands.isNotEmpty ? brands.first.id : '';
+    }
   }
 
   @override
@@ -499,8 +535,11 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
     final s = S.of(context);
     final name =
         _name.text.trim().isEmpty ? _defaultName(s) : _name.text.trim();
+    final edit = widget.editing;
     final a = Appliance(
-      id: widget.controller.newId(),
+      // Reuse the id when editing so the saved record is updated in place and
+      // its persisted state (AcState, etc.) is preserved.
+      id: edit?.id ?? widget.controller.newId(),
       name: name,
       kind: _kind,
       transport: _transport,
@@ -510,6 +549,10 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
       host: _isWifiOrHub ? _host.text.trim() : '',
       port: 0,
       secret: _isWifiOrHub ? _token.text.trim() : '',
+      acState: edit?.acState ?? const AcState(),
+      fanState: edit?.fanState ?? const FanState(),
+      lightState: edit?.lightState ?? const LightState(),
+      heaterState: edit?.heaterState ?? const HeaterState(),
     );
     await widget.controller.save(a);
     if (mounted) Navigator.of(context).pop();
@@ -535,7 +578,7 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
                     onTap: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(width: 10),
-                  Text(s.addAppliance,
+                  Text(widget.editing != null ? s.editDetails : s.addAppliance,
                       style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
@@ -572,10 +615,17 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
               const SizedBox(height: 8),
               _field(_name, _defaultName(s)),
               const SizedBox(height: 28),
-              GradientButton(
-                label: s.save,
-                icon: Icons.check_rounded,
-                onTap: _isWifiOrHub && _host.text.trim().isEmpty ? null : _save,
+              // Rebuild only the button as the host field changes, instead of
+              // setState-ing the whole screen on every keystroke.
+              AnimatedBuilder(
+                animation: _host,
+                builder: (context, _) => GradientButton(
+                  label: s.save,
+                  icon: Icons.check_rounded,
+                  onTap: _isWifiOrHub && _host.text.trim().isEmpty
+                      ? null
+                      : _save,
+                ),
               ),
             ],
           ),
@@ -649,7 +699,6 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
   }
 
   Widget _brandPicker(S s) {
-    final brands = _brandsForKind;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -658,7 +707,6 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
           TextField(
             controller: _brandSearch,
             style: const TextStyle(color: AppTheme.textHi),
-            onChanged: (_) => setState(() {}),
             decoration: InputDecoration(
               prefixIcon:
                   const Icon(Icons.search_rounded, color: AppTheme.textLo),
@@ -675,17 +723,23 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
           ),
           const SizedBox(height: 10),
         ],
-        if (brands.isEmpty)
-          _info(s.noBrandsForType)
-        else
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final b in brands)
-                _chip(b.name, _brand == b.id, () => _selectBrand(b.id)),
-            ],
-          ),
+        // Only the filtered chip list rebuilds as the query changes — not the
+        // whole add screen.
+        AnimatedBuilder(
+          animation: _brandSearch,
+          builder: (context, _) {
+            final brands = _brandsForKind;
+            if (brands.isEmpty) return _info(s.noBrandsForType);
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final b in brands)
+                  _chip(b.name, _brand == b.id, () => _selectBrand(b.id)),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
@@ -841,7 +895,6 @@ class _AddApplianceScreenState extends State<AddApplianceScreen> {
   Widget _field(TextEditingController ctrl, String hint) => TextField(
         controller: ctrl,
         style: const TextStyle(color: AppTheme.textHi),
-        onChanged: (_) => setState(() {}),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(color: AppTheme.textLo),

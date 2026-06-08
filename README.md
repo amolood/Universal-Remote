@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/platform-Android%20%7C%20iOS-555" alt="Platform" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License" /></a>
   <a href="https://pub.dev/packages/flutter_lints"><img src="https://img.shields.io/badge/style-flutter__lints-40C4FF" alt="Style" /></a>
-  <img src="https://img.shields.io/badge/tests-175%20passing-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-181%20passing-brightgreen" alt="Tests" />
 </p>
 
 ---

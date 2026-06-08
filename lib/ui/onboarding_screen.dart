@@ -39,6 +39,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           body: s.obControlBody,
           color: AppTheme.accentPink,
         ),
+        _Slide(
+          icon: Icons.ac_unit_rounded,
+          title: s.obAppliancesTitle,
+          body: s.obAppliancesBody,
+          color: AppTheme.accent,
+        ),
       ];
 
   @override
